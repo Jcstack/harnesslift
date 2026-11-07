@@ -95,6 +95,10 @@ class Fixture(BaseHTTPRequestHandler):
                 self.server.items += 1
                 time.sleep(1)
             if recovery_check and self.server.empty_tail != "none":
+                if self.server.unmapped_output:
+                    event({"type": "response.output_item.done", "output_index": 5,
+                           "item": {"id": "owned-unmapped-output", "type": "image_generation_call",
+                                    "status": "completed"}})
                 event({"type": "response.output_item.added", "output_index": 5,
                        "item": {"id": "owned-empty-tail", "type": "message", "role": "assistant",
                                 "status": "in_progress", "content": []}})
@@ -120,12 +124,16 @@ def main():
     parser.add_argument("--empty-tail", choices=("none", "part", "delta", "text"), default="none",
                         help="End after an empty text start, empty delta, or actual partial text")
     parser.add_argument("--family", choices=("sol", "astra"), default="sol")
+    parser.add_argument("--unmapped-output", action="store_true",
+                        help="Retain the old stop boundary after an owned unmapped native item")
     recovery = parser.add_mutually_exclusive_group()
     recovery.add_argument("--require-recovery", action="store_true")
     recovery.add_argument("--require-failure", action="store_true")
     args = parser.parse_args()
     if args.empty_tail != "none" and not (args.require_recovery or args.require_failure):
         parser.error("--empty-tail requires an explicit recovery or failure assertion")
+    if args.unmapped_output and args.empty_tail == "none":
+        parser.error("--unmapped-output requires --empty-tail")
     if os.name == "nt":
         print(
             json.dumps(
@@ -147,6 +155,7 @@ def main():
     server.request_semantics = []
     server.model = "gpt-6.1-sol" if args.family == "sol" else "gpt-6-astra"
     server.empty_tail = args.empty_tail
+    server.unmapped_output = args.unmapped_output
     server.items = 0
     server.mode = "comments" if args.comments else "opaque"
     server.release = threading.Event()
@@ -282,6 +291,7 @@ def main():
                             "two_layers": bool(args.origin_binary),
                             "family_mapping": args.family,
                             "empty_tail": args.empty_tail,
+                            "unmapped_native_output": args.unmapped_output,
                             "native_retry_semantics_preserved": semantics_preserved if recovered else None,
                             "recovery_check": server.recovery_check,
                             "ui_recovered": recovered,

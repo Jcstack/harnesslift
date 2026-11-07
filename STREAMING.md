@@ -139,6 +139,9 @@ The [empty-text boundary patch](upstream/patches/empty-text-boundary.patch)
 defers empty text starts and ignores empty deltas as delivered text. It keeps
 the whole-item fallback, nonempty whitespace and valid early URL annotations.
 It adds no replay loop, completion, account/model change or lower effort.
+After an unmapped native output item, it retains the previous empty-text stop
+boundary: that item's possible provider-side effects are not established by
+an empty answer. This guard is not complete hosted-tool idempotency acceptance.
 Local interactive controls recover through the native client, with compared
 model, reasoning, input, tool and cache-key fields unchanged. Headless controls
 cover empty starts and deltas before and after an owned write; the write runs

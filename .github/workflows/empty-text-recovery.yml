@@ -119,6 +119,7 @@ jobs:
             done
             python tests/probe_opaque_reasoning_ui.py "candidate-${{ matrix.binary }}" --origin-binary "baseline-${{ matrix.binary }}" --family "$family" --empty-tail text --require-failure
           done
+          python tests/probe_opaque_reasoning_ui.py "candidate-${{ matrix.binary }}" --origin-binary "baseline-${{ matrix.binary }}" --empty-tail part --unmapped-output --require-failure
       - name: Preserve a held stream and persistent client during handoff
         shell: bash
         run: |

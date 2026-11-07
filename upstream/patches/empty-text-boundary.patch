@@ -1,33 +1,41 @@
 diff --git a/internal/translator/codex/claude/codex_claude_response.go b/internal/translator/codex/claude/codex_claude_response.go
 --- a/internal/translator/codex/claude/codex_claude_response.go
 +++ b/internal/translator/codex/claude/codex_claude_response.go
-@@ -48,6 +48,7 @@
+@@ -48,6 +48,8 @@
  	BlockIndex               int
  	HasTextDelta             bool
  	TextBlockOpen            bool
 +	PendingTextPart          bool
++	UnmappedOutputSeen       bool
  	URLCitationIDs           map[string]struct{}
  	URLCitationTextHash      hash.Hash
  	URLCitationTextBytes     int
-@@ -165,6 +166,13 @@
+@@ -165,6 +167,13 @@
  		if rootResult.Get("part.type").String() == "output_text" {
  			params.TextOutputIndex = rootResult.Get("output_index").Int()
  			params.TextContentIndex = rootResult.Get("content_index").Int()
 +			// An empty upstream part is not delivered answer text. Opening a
 +			// Claude text block here makes its interactive client stop instead
 +			// of applying native recovery if the stream fails before any text.
-+			if rootResult.Get("part.text").String() == "" {
++			if rootResult.Get("part.text").String() == "" && !params.UnmappedOutputSeen {
 +				params.PendingTextPart = !params.TextBlockOpen && !params.CommentaryMessageOpen
 +				break
 +			}
  			if params.CommentaryMessageOpen {
  				output = append(output, startCodexThinkingBlock(params)...)
  			} else {
-@@ -175,6 +183,16 @@
+@@ -175,6 +184,23 @@
  			output = append(output, finalizeCodexThinkingBlock(params)...)
  		}
  	case "response.output_text.delta":
 +		if value := rootResult.Get("delta"); value.Type == gjson.String && value.String() == "" {
++			if params.UnmappedOutputSeen && !params.CommentaryMessageOpen {
++				// Keep the earlier delivery boundary after an unmapped native
++				// output: an empty answer does not prove that tool effects are absent.
++				output = append(output, finalizeCodexThinkingBlock(params)...)
++				output = append(output, startCodexTextBlock(params)...)
++				break
++			}
 +			if !params.TextBlockOpen && !params.CommentaryMessageOpen {
 +				params.PendingTextPart = true
 +				params.TextOutputIndex = rootResult.Get("output_index").Int()
@@ -40,7 +48,33 @@ diff --git a/internal/translator/codex/claude/codex_claude_response.go b/interna
  		params.HasTextDelta = true
  		if params.CommentaryMessageOpen {
  			output = append(output, startCodexThinkingBlock(params)...)
-@@ -1055,6 +1073,7 @@
+@@ -280,6 +306,12 @@
+ 			params.ThinkingSignature = itemResult.Get("encrypted_content").String()
+ 		case "web_search_call":
+ 			// Defer server_tool_use until output_item.done carries action/query.
++		default:
++			params.UnmappedOutputSeen = true
++			if params.PendingTextPart {
++				output = append(output, finalizeCodexThinkingBlock(params)...)
++				output = append(output, startCodexTextBlock(params)...)
++			}
+ 		}
+ 	case "response.output_item.done":
+ 		itemResult := rootResult.Get("item")
+@@ -385,6 +417,12 @@
+ 			params.ThinkingSummarySeen = false
+ 		case "web_search_call":
+ 			output = appendCodexWebSearchToolResult(output, params, rootResult, itemResult)
++		default:
++			params.UnmappedOutputSeen = true
++			if params.PendingTextPart {
++				output = append(output, finalizeCodexThinkingBlock(params)...)
++				output = append(output, startCodexTextBlock(params)...)
++			}
+ 		}
+ 	case "response.function_call_arguments.delta":
+ 		call := codexFunctionCallForEvent(params, rootResult, gjson.Result{})
+@@ -1055,6 +1093,7 @@
  }
  
  func startCodexTextBlock(params *ConvertCodexResponseToClaudeParams) []byte {
@@ -48,7 +82,7 @@ diff --git a/internal/translator/codex/claude/codex_claude_response.go b/interna
  	if params.TextBlockOpen {
  		return nil
  	}
-@@ -1095,6 +1114,7 @@
+@@ -1095,6 +1134,7 @@
  }
  
  func stopCodexTextBlock(params *ConvertCodexResponseToClaudeParams) []byte {
@@ -169,7 +203,7 @@ diff --git a/internal/translator/codex/claude/codex_empty_text_test.go b/interna
 new file mode 100644
 --- /dev/null
 +++ b/internal/translator/codex/claude/codex_empty_text_test.go
-@@ -0,0 +1,99 @@
+@@ -0,0 +1,115 @@
 +package claude
 +
 +import (
@@ -267,6 +301,22 @@ new file mode 100644
 +	})
 +	if gjson.GetBytes(content, "#").Int() != 1 || gjson.GetBytes(content, "0.text").String() != " " {
 +		t.Fatal("a nonempty whitespace delta was dropped or replaced")
++	}
++}
++
++func TestBridgeUnmappedNativeOutputKeepsPriorEmptyTextBoundary(t *testing.T) {
++	empty := `{"type":"response.content_part.added","part":{"type":"output_text","text":""}}`
++	for _, kind := range []string{"image_generation_call", "owned_future_output"} {
++		for _, stage := range []string{"added", "done"} {
++			item := `{"type":"response.output_item.` + stage + `","item":{"type":"` + kind + `","status":"completed"}}`
++			for _, events := range [][]string{{item, empty}, {empty, item},
++				{item, `{"type":"response.output_text.delta","delta":""}`}} {
++				out := emptyTextFixture(events...)
++				if !strings.Contains(out, `"type":"text"`) || strings.Contains(out, "message_stop") {
++					t.Fatal("unmapped native output extended recovery beyond the prior delivery boundary")
++				}
++			}
++		}
 +	}
 +}
 diff --git a/internal/runtime/executor/helps/codex_output_text_observation_test.go b/internal/runtime/executor/helps/codex_output_text_observation_test.go
