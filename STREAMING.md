@@ -158,9 +158,30 @@ retain an unknown state. The parser rejects unknown or extra values.
 The [dedicated gate](.github/workflows/empty-text-recovery.yml) contrasts native
 interactive recovery with the previous profile and with real partial text,
 and checks both model mappings, cancellation, exhaustion and managed handoff.
-Three-platform acceptance and local installation are pending. This defect is
-not established as the cause of a real user's earlier interruption, and the
-broader unattended-recovery gates remain open.
+The [initial run](https://github.com/Jcstack/harnesslift/actions/runs/42388390023)
+passed on Linux and macOS. Windows failed during local TLS initialization,
+before handoff, without enough retained failure detail to identify its cause.
+The [focused Windows run](https://github.com/Jcstack/harnesslift/actions/runs/42390954004)
+passed with the same production source and added fixture-only diagnostics.
+Independent [TLS bootstrap controls](https://github.com/Jcstack/harnesslift/actions/runs/42390954196)
+passed on all three platforms: private directories receive certificates and
+unsafe directories are rejected before certificate material is written.
+Only fixed failure classes and known ACL check codes can leave those fixtures;
+no raw stderr, path, SID or key is reported. The earlier failure's cause remains
+unknown. All eleven [implementation source/install jobs](https://github.com/Jcstack/harnesslift/actions/runs/42388219474)
+also passed. The later 440-case local offline suite passed with 20 optional skips.
+
+A 130-check installed-source overlay with one optional skip verified both
+the new bundle and continued access to the old immutable selection. The owned
+handoff retained a held stream and the same native client. On 2026-11-08 the
+bundle was selected through a draining local managed upgrade after targeted
+controller publication. Original state/process, ingress identity/port, key and
+account remained unchanged. An actual subscription control, using verified
+loopback TLS and no Project API, returned its exact owned text and native
+`end_turn`/`message_stop`. No real failure was induced. New managed requests
+receive the patch; admitted old requests and direct legacy clients keep their
+translator. The broader unattended, hosted-tool and live-installer gates remain
+open. This defect is not established as the cause of an earlier real interruption.
 
 #### Cancellation and server retry advice, 2026-11-07
 

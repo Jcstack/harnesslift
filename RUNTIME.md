@@ -91,12 +91,25 @@ diagnostic/controller files match the tested overlay, and a short subscription
 control produced the new phase records and a complete response. No original
 credential-owner or ingress migration was performed. [Limits and evidence](STREAMING.md#http-request-phases-2026-11-07).
 
-The source profile also includes an [empty-text boundary candidate](upstream/patches/empty-text-boundary.patch).
-Local protocol and native-client controls preserve recovery before actual
-answer text, whole-message fallback and early citations, while adding only
-fixed upstream text-state metadata. It is not yet selected on the local
-installation; cross-platform and installed handoff acceptance remain pending.
-It does not add gateway replay or migrate the credential owner.
+The source profile also includes the [empty-text boundary patch](upstream/patches/empty-text-boundary.patch).
+It preserves native recovery before actual answer text, whole-message fallback
+and early citations, while adding fixed upstream text-state metadata. Unmapped
+native output retains the previous stop boundary. Linux/macOS recovery and a
+focused Windows run passed, together with all eleven implementation source/install
+jobs. The first Windows run failed during TLS bootstrap before handoff; the
+later pass does not establish why. Independent private/unsafe TLS controls
+passed on all three platforms without weakening ACL checks.
+
+On 2026-11-08, a 130-check installed-source overlay with one optional skip and
+an owned persistent-client handoff passed before the source-locked bundle was
+selected through the managed upgrade. Only the compatible bundle controller,
+read-only diagnostics and cached source lock were updated. Original
+state/process, TLS ingress identity/port, frontend key and account remained
+unchanged. A short real subscription stream returned its exact synthetic marker
+and native stop events. New managed requests receive the patch; admitted old
+requests and direct legacy clients retain their original translator. This does
+not add gateway replay, migrate the credential owner or establish complete
+live-installer atomicity.
 [Scope and recovery boundaries](STREAMING.md#empty-text-and-native-recovery-2026-11-07).
 
 An isolated Claude Code 2.1.316 probe found a possible future migration path:

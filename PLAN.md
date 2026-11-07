@@ -1,6 +1,6 @@
 # Claude Code × Codex capability and reliability plan
 
-Updated 2026-11-07 (Asia/Shanghai). Work is guided by the long-running session and its child-session records. Update the evidence, open problems, and next steps after each phase.
+Updated 2026-11-08 (Asia/Shanghai). Work is guided by the long-running session and its child-session records. Update the evidence, open problems, and next steps after each phase.
 
 ## Goals and boundaries
 
@@ -86,9 +86,20 @@ close the broader unattended-recovery acceptance item.
   Local headless controls retain one write and its result before/after that
   boundary, compare retry semantics, and preserve explicit exhaustion bounds.
   Go race checks cover text fallback, whitespace, early citation deduplication
-  and a metadata-only upstream text-state category. The 439-case offline suite
-  passed with 20 optional skips. Three-platform and installed acceptance remain
-  pending; this does not identify a historical provider failure's cause or
+  and a metadata-only upstream text-state category. Unmapped native outputs
+  retain the earlier stop boundary. The 440-case offline suite passed with
+  20 optional skips. Linux/macOS [recovery acceptance](https://github.com/Jcstack/harnesslift/actions/runs/42388390023)
+  and the [focused Windows acceptance](https://github.com/Jcstack/harnesslift/actions/runs/42390954004)
+  passed, as did all 11 [implementation source/install jobs](https://github.com/Jcstack/harnesslift/actions/runs/42388219474).
+  The first Windows run failed during TLS bootstrap before handoff; its cause
+  is not established by the later pass. Three-platform [private/unsafe TLS controls](https://github.com/Jcstack/harnesslift/actions/runs/42390954196)
+  passed without relaxing ACL enforcement. A 130-check installed-source overlay
+  (one optional skip), immutable-old-selection check and owned persistent-client
+  handoff passed locally. The source-locked bundle was selected through a
+  draining managed upgrade on 2026-11-08. Origin state/process, ingress identity,
+  port, key and account were preserved. A short real subscription stream
+  returned its exact owned marker, `end_turn` and `message_stop`; no Project API
+  was used. These gates do not identify the earlier interruption's cause or
   close broader unattended recovery. See [STREAMING.md](STREAMING.md#empty-text-and-native-recovery-2026-11-07).
 - [x] Retain up to twelve noncompletion observations independently of the
   general recent-event list, with an explicit omitted count and unchanged
