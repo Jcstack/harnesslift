@@ -1,0 +1,36 @@
+name: tls-bootstrap-observation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-15]
+    runs-on: ${{ matrix.os }}
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.27.3'
+          cache: false
+      - name: Check diagnostic privacy
+        run: python -m unittest tests.test_tls_failure_metadata -q
+      - name: Build the unchanged ingress
+        working-directory: gateway
+        run: go build -o ../owned-ingress.exe .
+      - name: Require private bootstrap and unsafe-directory refusal
+        run: python tests/probe_tls_initialization.py owned-ingress.exe

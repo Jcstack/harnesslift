@@ -186,4 +186,5 @@
 !.github/workflows/request-phase-observation.yml
 !.github/workflows/auto-classifier-compatibility.yml
 !.github/workflows/empty-text-recovery.yml
+!.github/workflows/tls-bootstrap-observation.yml
 !upstream/patches/empty-text-boundary.patch

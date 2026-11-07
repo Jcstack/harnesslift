@@ -2,6 +2,12 @@ name: empty-text-recovery
 
 on:
   workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform scope for a focused acceptance run
+        type: choice
+        default: all
+        options: [all, windows-latest]
 
 permissions:
   contents: read
@@ -12,13 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            binary: cli-proxy-api
-          - os: windows-latest
-            binary: cli-proxy-api.exe
-          - os: macos-15
-            binary: cli-proxy-api
+        include: ${{ fromJSON(inputs.platform == 'windows-latest' && '[{"os":"windows-latest","binary":"cli-proxy-api.exe"}]' || '[{"os":"ubuntu-latest","binary":"cli-proxy-api"},{"os":"windows-latest","binary":"cli-proxy-api.exe"},{"os":"macos-15","binary":"cli-proxy-api"}]') }}
     runs-on: ${{ matrix.os }}
     env:
       PYTHONPATH: ${{ github.workspace }}

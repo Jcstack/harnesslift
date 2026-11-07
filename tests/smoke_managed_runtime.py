@@ -21,6 +21,7 @@ import time
 from unittest.mock import patch
 
 from live_compare_translators import stream
+from probe_tls_initialization import tls_failure_metadata
 import api_profile
 import process_identity
 import launcher
@@ -264,11 +265,23 @@ def main():
                 api_profile.write_private(source / name, text)
             base = {"process_identity": process_identity.stamp(os.getpid()), "pid": os.getpid(), "port": server.server_port, "session": source.name}
             processes, start = [], rolling_runtime.start
+            initialize, execute = rolling_runtime.initialize_tls, subprocess.run
+            def observed_initialize(binary, runtime):
+                def execute_observed(*arguments, **options):
+                    result = execute(*arguments, **options)
+                    command = arguments[0] if arguments else options.get("args")
+                    if (result.returncode and command == [str(binary), "--root", str(runtime), "--init-tls"]):
+                        print(json.dumps({"synthetic_only": True, "owned_tls_bootstrap_failed": True,
+                                          **tls_failure_metadata(result)}), flush=True)
+                    return result
+                with patch.object(subprocess, "run", side_effect=execute_observed):
+                    return initialize(binary, runtime)
             def start_fixture(*args, **kwargs):
                 process = start(*args, **kwargs)
                 processes.append(process)
                 return process
-            with patch.object(launcher, "ROOT", root), patch.object(rolling_runtime, "start", side_effect=start_fixture):
+            with patch.object(launcher, "ROOT", root), patch.object(rolling_runtime, "start", side_effect=start_fixture), \
+                    patch.object(rolling_runtime, "initialize_tls", side_effect=observed_initialize):
                 candidate = args.bundle.resolve()
                 if args.previous_proxy:
                     manifest, _ = runtime_bundle.verify(candidate)
