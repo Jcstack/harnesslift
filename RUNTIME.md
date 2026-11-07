@@ -91,6 +91,14 @@ diagnostic/controller files match the tested overlay, and a short subscription
 control produced the new phase records and a complete response. No original
 credential-owner or ingress migration was performed. [Limits and evidence](STREAMING.md#http-request-phases-2026-11-07).
 
+The source profile also includes an [empty-text boundary candidate](upstream/patches/empty-text-boundary.patch).
+Local protocol and native-client controls preserve recovery before actual
+answer text, whole-message fallback and early citations, while adding only
+fixed upstream text-state metadata. It is not yet selected on the local
+installation; cross-platform and installed handoff acceptance remain pending.
+It does not add gateway replay or migrate the credential owner.
+[Scope and recovery boundaries](STREAMING.md#empty-text-and-native-recovery-2026-11-07).
+
 An isolated Claude Code 2.1.316 probe found a possible future migration path:
 when its user settings file changed, an ordinary long-running client completed
 an already-started fake HTTP stream, then used a new authenticated fake HTTPS

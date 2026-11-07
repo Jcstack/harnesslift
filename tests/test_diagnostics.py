@@ -13,6 +13,32 @@ import rolling_runtime
 
 
 class DiagnosticsTests(unittest.TestCase):
+    def test_output_text_observation_is_optional_fixed_and_private(self):
+        stream = ('codex stream observation: phase=stream outcome=eof '
+                  'last_event=response.content_part.added prior_event=response.output_item.added '
+                  'data_items=2 elapsed_ms=1000 since_read_ms=0 event_gap_ms=1 '
+                  'max_read_gap_ms=1 read_error=none failure_kind=none')
+        buffered = ('codex stream observation: phase=buffered outcome=terminal_event '
+                    'last_event=response.failed data_items=3 elapsed_ms=1000 '
+                    'read_error=none failure_kind=reported_incomplete')
+        for prefix in (stream, buffered):
+            self.assertIsNone(diagnostics.stream_observation(prefix)['output_text_state'])
+            for state in ('none', 'empty_only', 'nonempty'):
+                row = diagnostics.stream_observation(prefix + ' output_text_state=' + state)
+                self.assertEqual(row['output_text_state'], state)
+            for extra in (' output_text_state=PRIVATE_SECRET', ' output_text_state=empty_only raw=PRIVATE_SECRET',
+                          ' output_text_state=none output_text_state=nonempty'):
+                self.assertIsNone(diagnostics.stream_observation(prefix + extra))
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'PRIVATE.log'
+            path.write_text('[2026-01-02T12:00:00Z] [aabbccdd] ' + stream +
+                            ' output_text_state=empty_only\n', encoding='utf-8')
+            report = diagnostics.proxy_summary(path, datetime(2026, 1, 1, tzinfo=timezone.utc))
+            failure, = report['stream_termination_observations']['recent_noncompletion']
+            self.assertEqual(failure['output_text_state'], 'empty_only')
+            for private in ('aabbccdd', 'PRIVATE', str(path)):
+                self.assertNotIn(private, json.dumps(report))
+
     def test_buffered_observation_has_no_invented_gap_and_no_raw_reason(self):
         line = ('codex stream observation: phase=buffered outcome=terminal_event '
                 'last_event=response.failed data_items=2 elapsed_ms=1200 '

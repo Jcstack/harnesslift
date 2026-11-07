@@ -1,0 +1,329 @@
+diff --git a/internal/translator/codex/claude/codex_claude_response.go b/internal/translator/codex/claude/codex_claude_response.go
+--- a/internal/translator/codex/claude/codex_claude_response.go
++++ b/internal/translator/codex/claude/codex_claude_response.go
+@@ -48,6 +48,7 @@
+ 	BlockIndex               int
+ 	HasTextDelta             bool
+ 	TextBlockOpen            bool
++	PendingTextPart          bool
+ 	URLCitationIDs           map[string]struct{}
+ 	URLCitationTextHash      hash.Hash
+ 	URLCitationTextBytes     int
+@@ -165,6 +166,13 @@
+ 		if rootResult.Get("part.type").String() == "output_text" {
+ 			params.TextOutputIndex = rootResult.Get("output_index").Int()
+ 			params.TextContentIndex = rootResult.Get("content_index").Int()
++			// An empty upstream part is not delivered answer text. Opening a
++			// Claude text block here makes its interactive client stop instead
++			// of applying native recovery if the stream fails before any text.
++			if rootResult.Get("part.text").String() == "" {
++				params.PendingTextPart = !params.TextBlockOpen && !params.CommentaryMessageOpen
++				break
++			}
+ 			if params.CommentaryMessageOpen {
+ 				output = append(output, startCodexThinkingBlock(params)...)
+ 			} else {
+@@ -175,6 +183,16 @@
+ 			output = append(output, finalizeCodexThinkingBlock(params)...)
+ 		}
+ 	case "response.output_text.delta":
++		if value := rootResult.Get("delta"); value.Type == gjson.String && value.String() == "" {
++			if !params.TextBlockOpen && !params.CommentaryMessageOpen {
++				params.PendingTextPart = true
++				params.TextOutputIndex = rootResult.Get("output_index").Int()
++				params.TextContentIndex = rootResult.Get("content_index").Int()
++			}
++			// Also keep the whole-item fallback available: an empty delta must
++			// not mark a message's actual text as already streamed.
++			break
++		}
+ 		params.HasTextDelta = true
+ 		if params.CommentaryMessageOpen {
+ 			output = append(output, startCodexThinkingBlock(params)...)
+@@ -1055,6 +1073,7 @@
+ }
+ 
+ func startCodexTextBlock(params *ConvertCodexResponseToClaudeParams) []byte {
++	params.PendingTextPart = false
+ 	if params.TextBlockOpen {
+ 		return nil
+ 	}
+@@ -1095,6 +1114,7 @@
+ }
+ 
+ func stopCodexTextBlock(params *ConvertCodexResponseToClaudeParams) []byte {
++	params.PendingTextPart = false
+ 	if !params.TextBlockOpen {
+ 		return nil
+ 	}
+diff --git a/internal/translator/codex/claude/codex_url_citations.go b/internal/translator/codex/claude/codex_url_citations.go
+--- a/internal/translator/codex/claude/codex_url_citations.go
++++ b/internal/translator/codex/claude/codex_url_citations.go
+@@ -75,7 +75,7 @@
+ }
+ 
+ func appendCodexURLCitations(output []byte, params *ConvertCodexResponseToClaudeParams, outputIndex, contentIndex int64, annotations gjson.Result) []byte {
+-	if !params.TextBlockOpen || params.CommentaryMessageOpen || !annotations.IsArray() ||
++	if (!params.TextBlockOpen && !params.PendingTextPart) || params.CommentaryMessageOpen || !annotations.IsArray() ||
+ 		params.TextOutputIndex != outputIndex || params.TextContentIndex != contentIndex {
+ 		return output
+ 	}
+@@ -90,6 +90,12 @@
+ 		identity := fmt.Sprintf("%d:%d:%x", outputIndex, contentIndex, sha256.Sum256(raw))
+ 		if _, exists := params.URLCitationIDs[identity]; exists {
+ 			return true
++		}
++		// A real annotation is content even when it precedes the first text
++		// delta. Preserve it without opening blocks for empty or invalid parts.
++		if !params.TextBlockOpen {
++			output = append(output, finalizeCodexThinkingBlock(params)...)
++			output = append(output, startCodexTextBlock(params)...)
+ 		}
+ 		citation := codexURLCitation(raw, params.URLCitationTextBytes, params.URLCitationTextHash.Sum(nil))
+ 		if citation == nil {
+diff --git a/internal/runtime/executor/helps/codex_stream_observation.go b/internal/runtime/executor/helps/codex_stream_observation.go
+--- a/internal/runtime/executor/helps/codex_stream_observation.go
++++ b/internal/runtime/executor/helps/codex_stream_observation.go
+@@ -32,6 +32,7 @@
+ 	previous         string
+ 	eventGapMillis   int64
+ 	maxReadGapMillis int64
++	outputTextState  string
+ }
+ 
+ // The window is explicit, finite, and fixed at process startup. Invalid input
+@@ -62,7 +63,7 @@
+ 	if os.Getenv("CLAUDE_CODEX_STREAM_DIAGNOSTICS") != "1" || !now.Before(codexStreamObservationExpiry) {
+ 		return nil
+ 	}
+-	return &CodexStreamObservation{started: now, expires: codexStreamObservationExpiry, lastRead: now, lastEventAt: now, last: "none", previous: "none", failureKind: "none"}
++	return &CodexStreamObservation{started: now, expires: codexStreamObservationExpiry, lastRead: now, lastEventAt: now, last: "none", previous: "none", failureKind: "none", outputTextState: "none"}
+ }
+ 
+ // NoteRead records a read callback. Callbacks and observations are sequential, including the
+@@ -99,15 +100,50 @@
+ 	if value.String() == "error" || value.String() == "response.failed" {
+ 		d.failureKind = codexObservationFailureKind(data)
+ 	}
++	d.observeOutputText(data, value.String())
+ 	switch value.String() {
+ 	case "response.created", "response.in_progress", "response.output_item.added", "response.output_item.done",
+-		"response.output_text.delta", "response.reasoning_summary_text.delta", "response.reasoning_summary_part.added",
++		"response.output_text.delta", "response.output_text.done", "response.content_part.added", "response.content_part.done",
++		"response.output_text.annotation.added", "response.reasoning_summary_text.delta", "response.reasoning_summary_part.added",
+ 		"response.function_call_arguments.delta", "response.completed", "response.done", "response.incomplete", "response.failed",
+ 		"error", "codex.rate_limits", "codex.response.metadata", "response.metadata", "keepalive", "ping":
+ 		// Retain a small owned enum string, never a view into a response frame.
+ 		d.last = strings.Clone(value.String())
+ 	default:
+ 		d.last = "other"
++	}
++}
++
++// Observe only whether upstream text was absent, empty, or nonempty. This is
++// not a claim about client delivery, useful progress, tokens, or safe replay.
++func (d *CodexStreamObservation) observeOutputText(data []byte, event string) {
++	note := func(value gjson.Result) {
++		if value.Type != gjson.String {
++			return
++		}
++		if value.String() != "" {
++			d.outputTextState = "nonempty"
++		} else if d.outputTextState != "nonempty" {
++			d.outputTextState = "empty_only"
++		}
++	}
++	part := func(value gjson.Result) {
++		if value.Get("type").String() == "output_text" {
++			note(value.Get("text"))
++		}
++	}
++	switch event {
++	case "response.output_text.delta":
++		note(gjson.GetBytes(data, "delta"))
++	case "response.output_text.done":
++		note(gjson.GetBytes(data, "text"))
++	case "response.content_part.added", "response.content_part.done":
++		part(gjson.GetBytes(data, "part"))
++	case "response.output_item.done":
++		item := gjson.GetBytes(data, "item")
++		if item.Get("type").String() == "message" {
++			item.Get("content").ForEach(func(_, value gjson.Result) bool { part(value); return true })
++		}
+ 	}
+ }
+ 
+@@ -182,6 +218,11 @@
+ 			outcome, d.last, d.items, codexObservationMillis(d.started, now), codexObservationReadError(readErr))
+ 	}
+ 	message += " failure_kind=" + d.failureKind
++	textState := "none"
++	if d.outputTextState == "empty_only" || d.outputTextState == "nonempty" {
++		textState = d.outputTextState
++	}
++	message += " output_text_state=" + textState
+ 	entry := log.NewEntry(log.StandardLogger())
+ 	if tag := codexObservationRequestTag(ctx); tag != "" {
+ 		entry = entry.WithField("request_id", tag)
+diff --git a/internal/translator/codex/claude/codex_empty_text_test.go b/internal/translator/codex/claude/codex_empty_text_test.go
+new file mode 100644
+--- /dev/null
++++ b/internal/translator/codex/claude/codex_empty_text_test.go
+@@ -0,0 +1,99 @@
++package claude
++
++import (
++	"context"
++	"strings"
++	"testing"
++
++	"github.com/tidwall/gjson"
++)
++
++func emptyTextFixture(events ...string) string {
++	var state any
++	var result strings.Builder
++	for _, event := range events {
++		for _, chunk := range ConvertCodexResponseToClaude(context.Background(), "gpt-6.1-sol", nil, nil,
++			[]byte("data: "+event), &state) {
++			result.Write(chunk)
++		}
++	}
++	return result.String()
++}
++
++func TestBridgeEmptyTextDoesNotClaimDeliveryOrCompletion(t *testing.T) {
++	for _, tail := range [][]string{
++		{`{"type":"response.content_part.added","output_index":0,"content_index":0,"part":{"type":"output_text","text":""}}`},
++		{`{"type":"response.output_text.delta","output_index":0,"content_index":0,"delta":""}`},
++		{`{"type":"response.content_part.added","output_index":0,"content_index":0,"part":{"type":"output_text","text":""}}`,
++			`{"type":"response.output_text.delta","output_index":0,"content_index":0,"delta":""}`},
++	} {
++		events := append([]string{`{"type":"response.created","response":{"id":"owned-empty","model":"gpt-6.1-sol"}}`}, tail...)
++		events = append(events, `{"type":"error","error":{"type":"server_error","message":"Owned failed stream"}}`)
++		out := emptyTextFixture(events...)
++		if strings.Contains(out, `"type":"text"`) || strings.Contains(out, `"type":"text_delta"`) ||
++			strings.Contains(out, "message_stop") || strings.Contains(out, "message_delta") || !strings.Contains(out, "event: error") {
++			t.Fatal("an empty unfinished answer claimed content or successful completion")
++		}
++	}
++}
++
++func TestBridgeEmptyDeltaPreservesWholeMessageFallback(t *testing.T) {
++	content := collectCitationStream(t, []string{
++		`{"type":"response.output_item.added","output_index":0,"item":{"type":"message","role":"assistant","content":[]}}`,
++		`{"type":"response.content_part.added","output_index":0,"content_index":0,"part":{"type":"output_text","text":""}}`,
++		`{"type":"response.output_text.delta","output_index":0,"content_index":0,"delta":""}`,
++		`{"type":"response.output_item.done","output_index":0,"item":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Retained answer."}]}}`,
++		`{"type":"response.completed","response":{"output":[]}}`,
++	})
++	if gjson.GetBytes(content, "#").Int() != 1 || gjson.GetBytes(content, "0.text").String() != "Retained answer." {
++		t.Fatal("an empty delta discarded or duplicated the whole-message answer")
++	}
++}
++
++func TestBridgeEmptyPartPreservesEarlyCitationAndDedup(t *testing.T) {
++	part := `{"type":"output_text","text":"Fixture answer.","annotations":[` + urlCitationFixture + `]}`
++	item := `{"type":"message","role":"assistant","content":[` + part + `]}`
++	annotation := `{"type":"response.output_text.annotation.added","output_index":0,"content_index":0,"annotation":` + urlCitationFixture + `}`
++	content := collectCitationStream(t, []string{
++		`{"type":"response.content_part.added","output_index":0,"content_index":0,"part":{"type":"output_text","text":""}}`,
++		annotation, annotation,
++		`{"type":"response.output_text.delta","output_index":0,"content_index":0,"delta":"Fixture answer."}`,
++		`{"type":"response.content_part.done","output_index":0,"content_index":0,"part":` + part + `}`,
++		annotation,
++		`{"type":"response.output_item.done","output_index":0,"item":` + item + `}`,
++		`{"type":"response.completed","response":{"output":[` + item + `]}}`,
++	})
++	block := gjson.GetBytes(content, "0")
++	if gjson.GetBytes(content, "#").Int() != 1 || block.Get("text").String() != "Fixture answer." || block.Get("citations.#").Int() != 1 {
++		t.Fatal("early or repeated annotations lost text, duplicated a block, or changed citation count")
++	}
++	// The citation represents only the prefix available when it was emitted;
++	// an early citation is not a binding to later, not-yet-generated text.
++	replayed := replayCodexURLCitations(block)
++	if gjson.GetBytes(replayed, "#").Int() != 1 ||
++		string(canonicalCodexURLCitation(gjson.GetBytes(replayed, "0"))) != string(canonicalCodexURLCitation(gjson.Parse(urlCitationFixture))) {
++		t.Fatal("the native URL annotation did not survive the early-content boundary")
++	}
++}
++
++func TestBridgeInvalidEarlyCitationDoesNotClaimDelivery(t *testing.T) {
++	out := emptyTextFixture(
++		`{"type":"response.content_part.added","part":{"type":"output_text","text":""}}`,
++		`{"type":"response.output_text.annotation.added","annotation":{"type":"url_citation","url":"javascript:invalid"}}`,
++	)
++	if strings.Contains(out, "content_block_start") {
++		t.Fatal("an invalid annotation opened an empty text block")
++	}
++}
++
++func TestBridgeWhitespaceDeltaRemainsRealContent(t *testing.T) {
++	content := collectCitationStream(t, []string{
++		`{"type":"response.content_part.added","part":{"type":"output_text","text":""}}`,
++		`{"type":"response.output_text.delta","delta":" "}`,
++		`{"type":"response.output_item.done","item":{"type":"message","content":[{"type":"output_text","text":"must not replace the delta"}]}}`,
++		`{"type":"response.completed","response":{"output":[]}}`,
++	})
++	if gjson.GetBytes(content, "#").Int() != 1 || gjson.GetBytes(content, "0.text").String() != " " {
++		t.Fatal("a nonempty whitespace delta was dropped or replaced")
++	}
++}
+diff --git a/internal/runtime/executor/helps/codex_output_text_observation_test.go b/internal/runtime/executor/helps/codex_output_text_observation_test.go
+new file mode 100644
+--- /dev/null
++++ b/internal/runtime/executor/helps/codex_output_text_observation_test.go
+@@ -0,0 +1,53 @@
++package helps
++
++import (
++	"context"
++	"strings"
++	"testing"
++
++	log "github.com/sirupsen/logrus"
++)
++
++func TestBridgeOutputTextObservationMonotonicAndPrivate(t *testing.T) {
++	t.Setenv("CLAUDE_CODEX_STREAM_DIAGNOSTICS", "1")
++	hook := &observationHook{}
++	logger := log.StandardLogger()
++	old := logger.ReplaceHooks(make(log.LevelHooks))
++	defer logger.ReplaceHooks(old)
++	logger.AddHook(hook)
++	d := NewCodexStreamObservation()
++	d.Observe([]byte(`data: {"type":"response.created","metadata":{"private":"` + observationSecret + `"}}`))
++	d.Emit(context.Background(), "stream", "eof", nil)
++	d.Observe([]byte(`data: {"type":"response.content_part.added","part":{"type":"output_text","text":""}}`))
++	d.Emit(context.Background(), "stream", "eof", nil)
++	d.Observe([]byte(`data: {"type":"response.output_text.delta","delta":"` + observationSecret + `"}`))
++	d.Observe([]byte(`data: {"type":"response.output_text.delta","delta":""}`))
++	d.Emit(context.Background(), "stream", "eof", nil)
++	entries := hook.snapshot()
++	if len(entries) != 3 {
++		t.Fatal("the owned text observations were not emitted")
++	}
++	for i, want := range []string{"none", "empty_only", "nonempty"} {
++		if !strings.Contains(entries[i].Message, "output_text_state="+want) || strings.Contains(entries[i].Message, observationSecret) {
++			t.Fatal("output state changed backwards or exposed text")
++		}
++	}
++}
++
++func TestBridgeOutputTextObservationTypedSnapshots(t *testing.T) {
++	t.Setenv("CLAUDE_CODEX_STREAM_DIAGNOSTICS", "1")
++	for _, tc := range []struct{ data, want string }{
++		{`{"type":"response.output_text.delta","delta":{"private":"` + observationSecret + `"}}`, "none"},
++		{`{"type":"response.content_part.added","part":{"type":"reasoning_text","text":"` + observationSecret + `"}}`, "none"},
++		{`{"type":"response.output_text.delta","delta":""}`, "empty_only"},
++		{`{"type":"response.output_text.done","text":" "}`, "nonempty"},
++		{`{"type":"response.content_part.done","part":{"type":"output_text","text":"` + observationSecret + `"}}`, "nonempty"},
++		{`{"type":"response.output_item.done","item":{"type":"message","content":[{"type":"output_text","text":"` + observationSecret + `"}]}}`, "nonempty"},
++	} {
++		d := NewCodexStreamObservation()
++		d.Observe([]byte("data: " + tc.data))
++		if d.outputTextState != tc.want {
++			t.Fatal("an upstream text snapshot lost its fixed category")
++		}
++	}
++}

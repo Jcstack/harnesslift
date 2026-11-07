@@ -126,7 +126,11 @@ class Handler(BaseHTTPRequestHandler):
         if count > 1 and PARTIAL_TEXT in json.dumps(body.get("input", [])):
             self.server.text_continuation_seen = True
         response = {"id": f"resp_fixture_{count}", "model": body.get("model"), "status": "in_progress"}
-        if mode == "reasoning_only" and count <= getattr(self.server, "reasoning_failures", 1):
+        empty_text = mode.startswith("empty_text_")
+        failure_start = 2 if empty_text and mode.endswith("_after_tool") else 1
+        reasoning_failure = (mode == "reasoning_only" or empty_text) and (
+            failure_start <= count < failure_start + getattr(self.server, "reasoning_failures", 1))
+        if reasoning_failure:
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
             self.end_headers()
@@ -139,6 +143,17 @@ class Handler(BaseHTTPRequestHandler):
                         {"type": "response.output_item.done", "output_index": i,
                          "item": {**item, "encrypted_content": "S" * 8500 + str(i)}},
                     ])
+                if empty_text:
+                    frames.extend([
+                        {"type": "response.output_item.added", "output_index": 3,
+                         "item": {"id": "owned-empty-text", "type": "message", "role": "assistant",
+                                  "status": "in_progress", "content": []}},
+                        {"type": "response.content_part.added", "output_index": 3, "content_index": 0,
+                         "part": {"type": "output_text", "text": ""}},
+                    ])
+                    if mode.startswith("empty_text_delta"):
+                        frames.append({"type": "response.output_text.delta", "output_index": 3,
+                                       "content_index": 0, "delta": ""})
                 for frame in frames:
                     self.wfile.write(("data: " + json.dumps(frame) + "\n\n").encode())
                     self.wfile.flush()
@@ -148,6 +163,8 @@ class Handler(BaseHTTPRequestHandler):
             except OSError:
                 pass
             return
+        if empty_text:
+            mode = "healthy"
         incomplete_retry = self.server.mode in ("max_partial_arguments", "max_arguments_done", "max_item_incomplete",
                                                 "max_item_incomplete_then_completed") and not first
         text_prefix = first and mode == "text_only"
@@ -271,7 +288,8 @@ def main():
              ("denied_target", "healthy", "partial_arguments", "tool_block", "stop_reason", "message_stop",
               "eof_partial_arguments", "eof_tool_block", "eof_stop_reason", "eof_message_stop"))
     if args.codex_observation or args.codex_executor:
-        modes += ("eof_reasoning_only", "eof_text_only")
+        modes += ("eof_reasoning_only", "eof_text_only", "eof_empty_text_part", "eof_empty_text_delta",
+                  "eof_empty_text_part_after_tool", "eof_empty_text_delta_after_tool")
     if args.case:
         if any(case not in modes for case in args.case):
             parser.error("Unknown synthetic stream case")
@@ -406,13 +424,20 @@ else:
                         assert succeeded, "The real client did not recover from the synthetic failure"
                     if args.require_failure:
                         assert not succeeded, "The baseline unexpectedly recovered from the synthetic failure"
-                    if mode == "eof_reasoning_only":
-                        attempts = server.request_semantics[:args.reasoning_failures + 1]
+                    empty_text_case = mode.startswith("eof_empty_text_")
+                    if mode == "eof_reasoning_only" or empty_text_case:
+                        start = 1 if empty_text_case and mode.endswith("_after_tool") else 0
+                        attempts = server.request_semantics[start:start + args.reasoning_failures + 1]
                         reasoning_semantics_preserved = len(attempts) >= 2 and all(attempt == attempts[0] for attempt in attempts[1:])
-                        if args.require_failure and args.client_retries is not None:
+                        if mode == "eof_reasoning_only" and args.require_failure and args.client_retries is not None:
                             assert len(server.requests) == args.client_retries + 1, "The client did not stop at its explicit native retry budget"
                             assert not hooks and not target.exists(), "Exhausted reasoning retries executed a tool"
                             assert reasoning_semantics_preserved, "Exhausted retries changed the requested semantics"
+                        if (empty_text_case and args.require_failure and args.client_retries is not None
+                                and args.reasoning_failures > args.client_retries):
+                            assert len(server.requests) == start + args.client_retries + 1, "Empty-text recovery exceeded or skipped the explicit native retry budget"
+                            assert len(hooks) == start and target.exists() == bool(start), "Empty-text exhaustion changed a previously committed effect"
+                            assert reasoning_semantics_preserved, "Exhausted empty-text retries changed requested semantics"
                     if mode == "denied_target":
                         assert not succeeded and not target.exists() and not (work / "blocked.txt").exists() and not hooks, "Scoped handler did not deny the other target"
                     assert len(hooks) <= 1, "A stream interruption executed the same logical write twice"
@@ -425,7 +450,7 @@ else:
                         assert any(request["has_tool_result"] for request in server.requests[1:]), "Continuation lost the committed tool result"
                         if mode == "eof_text_only":
                             assert getattr(server, "text_continuation_seen", False), "Native continuation lost the completed partial text"
-                        if mode == "eof_reasoning_only":
+                        if mode == "eof_reasoning_only" or empty_text_case:
                             assert reasoning_semantics_preserved, "Reasoning recovery changed the model, effort, tools, input or cache key"
                             assert json.loads(server.request_semantics[0])["model"] == args.fixture_model, "Recovery silently substituted the requested model"
                     else:
@@ -453,9 +478,9 @@ else:
                     "tool_write_at_most_once": True,
                     "reasoning_retry_semantics_preserved": reasoning_semantics_preserved,
                     "completed_partial_text_retained": mode == "eof_text_only" and bool(getattr(server, "text_continuation_seen", False)),
-                    "synthetic_reasoning_failures": args.reasoning_failures if mode == "eof_reasoning_only" else 0,
+                    "synthetic_reasoning_failures": args.reasoning_failures if mode == "eof_reasoning_only" or empty_text_case else 0,
                     "explicit_native_retry_budget": args.client_retries,
-                    "synthetic_reasoning_delay_seconds": args.reasoning_delay_seconds if mode == "eof_reasoning_only" else 0})
+                    "synthetic_reasoning_delay_seconds": args.reasoning_delay_seconds if mode == "eof_reasoning_only" or empty_text_case else 0})
             finally:
                 server.reasoning_release.set()
                 stack.close()

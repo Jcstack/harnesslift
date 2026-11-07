@@ -80,6 +80,16 @@ close the broader unattended-recovery acceptance item.
 
 ## P0: Availability and investigation
 
+- [x] Reproduce an empty-text delivery defect in an owned two-hop native
+  interactive client. The previous profile stops after an empty part start or
+  empty delta following reasoning; the candidate preserves native recovery.
+  Local headless controls retain one write and its result before/after that
+  boundary, compare retry semantics, and preserve explicit exhaustion bounds.
+  Go race checks cover text fallback, whitespace, early citation deduplication
+  and a metadata-only upstream text-state category. The 439-case offline suite
+  passed with 20 optional skips. Three-platform and installed acceptance remain
+  pending; this does not identify a historical provider failure's cause or
+  close broader unattended recovery. See [STREAMING.md](STREAMING.md#empty-text-and-native-recovery-2026-11-07).
 - [x] Retain up to twelve noncompletion observations independently of the
   general recent-event list, with an explicit omitted count and unchanged
   fixed-field redaction. Healthy controls no longer evict every failure

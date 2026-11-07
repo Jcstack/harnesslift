@@ -52,8 +52,10 @@ jobs:
           python - <<'PY'
           import subprocess
           import runtime_bundle
-          assert runtime_bundle.PATCHES[-1] == 'codex-http-observation.patch'
-          for name in runtime_bundle.PATCHES[:-1]:
+          assert 'codex-http-observation.patch' in runtime_bundle.PATCHES
+          for name in runtime_bundle.PATCHES:
+              if name == 'codex-http-observation.patch':
+                  continue
               subprocess.run(['git', '-C', 'upstream-source', 'apply', str(runtime_bundle.SOURCE / 'upstream' / 'patches' / name)], check=True)
           PY
           cd upstream-source

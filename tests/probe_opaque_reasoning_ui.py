@@ -36,6 +36,9 @@ class Fixture(BaseHTTPRequestHandler):
             for tool in body.get("tools", []))
         if main:
             self.server.requests += 1
+            self.server.request_semantics.append(json.dumps({key: body.get(key) for key in (
+                "model", "instructions", "input", "tools", "reasoning", "tool_choice", "prompt_cache_key")},
+                sort_keys=True, separators=(",", ":")))
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Connection", "close")
@@ -50,19 +53,19 @@ class Fixture(BaseHTTPRequestHandler):
                 text = "FIXTURE_RECOVERED" if main else "Synthetic auxiliary"
                 item = {"type": "message", "id": "synthetic-message", "role": "assistant", "status": "completed",
                         "content": [{"type": "output_text", "text": text, "annotations": []}]}
-                event({"type": "response.created", "response": {"id": "fixture", "model": "gpt-6.1-sol"}})
+                event({"type": "response.created", "response": {"id": "fixture", "model": self.server.model}})
                 event({"type": "response.output_item.added", "output_index": 0, "item": {**item, "content": []}})
                 event({"type": "response.content_part.added", "output_index": 0, "content_index": 0,
                        "part": {"type": "output_text", "text": ""}})
                 event({"type": "response.output_text.delta", "output_index": 0, "content_index": 0, "delta": text})
                 event({"type": "response.output_item.done", "output_index": 0, "item": item})
-                event({"type": "response.completed", "response": {"id": "fixture", "model": "gpt-6.1-sol",
+                event({"type": "response.completed", "response": {"id": "fixture", "model": self.server.model,
                        "status": "completed", "output": [item], "usage": {"input_tokens": 1000, "output_tokens": 4}}})
                 return
             event(
                 {
                     "type": "response.created",
-                    "response": {"id": "fixture", "model": "gpt-6.1-sol"},
+                    "response": {"id": "fixture", "model": self.server.model},
                 }
             )
             for i in range(5):
@@ -91,6 +94,17 @@ class Fixture(BaseHTTPRequestHandler):
                     self.wfile.flush()
                 self.server.items += 1
                 time.sleep(1)
+            if recovery_check and self.server.empty_tail != "none":
+                event({"type": "response.output_item.added", "output_index": 5,
+                       "item": {"id": "owned-empty-tail", "type": "message", "role": "assistant",
+                                "status": "in_progress", "content": []}})
+                event({"type": "response.content_part.added", "output_index": 5, "content_index": 0,
+                       "part": {"type": "output_text", "text": ""}})
+                if self.server.empty_tail == "delta":
+                    event({"type": "response.output_text.delta", "output_index": 5, "content_index": 0, "delta": ""})
+                elif self.server.empty_tail == "text":
+                    event({"type": "response.output_text.delta", "output_index": 5, "content_index": 0,
+                           "delta": "OWNED_PARTIAL_TEXT"})
             if not recovery_check:
                 self.server.release.wait(30)
         except OSError:
@@ -103,10 +117,15 @@ def main():
     parser.add_argument("proxy_binary", type=Path)
     parser.add_argument("--comments", action="store_true")
     parser.add_argument("--origin-binary", type=Path, help="Use an owned second proxy hop")
+    parser.add_argument("--empty-tail", choices=("none", "part", "delta", "text"), default="none",
+                        help="End after an empty text start, empty delta, or actual partial text")
+    parser.add_argument("--family", choices=("sol", "astra"), default="sol")
     recovery = parser.add_mutually_exclusive_group()
     recovery.add_argument("--require-recovery", action="store_true")
     recovery.add_argument("--require-failure", action="store_true")
     args = parser.parse_args()
+    if args.empty_tail != "none" and not (args.require_recovery or args.require_failure):
+        parser.error("--empty-tail requires an explicit recovery or failure assertion")
     if os.name == "nt":
         print(
             json.dumps(
@@ -125,6 +144,9 @@ def main():
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), Fixture)
     server.requests = 0
+    server.request_semantics = []
+    server.model = "gpt-6.1-sol" if args.family == "sol" else "gpt-6-astra"
+    server.empty_tail = args.empty_tail
     server.items = 0
     server.mode = "comments" if args.comments else "opaque"
     server.release = threading.Event()
@@ -139,7 +161,7 @@ def main():
         config = root / "config"
         config.mkdir(mode=0o700)
         settings = root / "settings.json"
-        model = "gpt-6.1-sol"
+        model = server.model
         settings.write_text(
             json.dumps(
                 {
@@ -148,7 +170,7 @@ def main():
                             {
                                 "model": model,
                                 "label": "Synthetic fixture",
-                                "behavesAs": "claude-sonnet-5-5",
+                                "behavesAs": "claude-sonnet-5-5" if args.family == "sol" else "claude-opus-5-5",
                             }
                         ],
                         "replaceBuiltInOptions": True,
@@ -177,11 +199,11 @@ def main():
         )
         with ExitStack() as stack:
             if args.origin_binary:
-                inner_port, inner_key, _ = stack.enter_context(temporary_codex_translator(args.origin_binary.resolve(), server.server_port))
+                inner_port, inner_key, _ = stack.enter_context(temporary_codex_translator(args.origin_binary.resolve(), server.server_port, model=model))
                 port, key, _ = stack.enter_context(temporary_codex_translator(baseline, inner_port, upstream_prefix="/v1",
-                                                                            upstream_key=inner_key, managed_policy=True))
+                                                                            upstream_key=inner_key, managed_policy=True, model=model))
             else:
-                port, key, _ = stack.enter_context(temporary_codex_translator(baseline, server.server_port))
+                port, key, _ = stack.enter_context(temporary_codex_translator(baseline, server.server_port, model=model))
             env.update(
                 ANTHROPIC_BASE_URL=f"http://127.0.0.1:{port}",
                 ANTHROPIC_AUTH_TOKEN=key,
@@ -246,6 +268,10 @@ def main():
                 recovered = "FIXTURE_RECOVERED" in clean
                 if args.require_recovery and (not recovered or server.requests < 2):
                     raise RuntimeError("The interactive client did not recover from the owned failure")
+                semantics_preserved = recovered and len(server.request_semantics) >= 2 and all(
+                    value == server.request_semantics[0] for value in server.request_semantics[1:])
+                if args.require_recovery and not semantics_preserved:
+                    raise RuntimeError("Native interactive retries changed requested semantics")
                 if args.require_failure and (recovered or server.requests != 1 or "API Error" not in clean):
                     raise RuntimeError("The baseline interactive failure was not reproduced")
                 print(
@@ -254,6 +280,9 @@ def main():
                             "synthetic_only": True,
                             "mode": server.mode,
                             "two_layers": bool(args.origin_binary),
+                            "family_mapping": args.family,
+                            "empty_tail": args.empty_tail,
+                            "native_retry_semantics_preserved": semantics_preserved if recovered else None,
                             "recovery_check": server.recovery_check,
                             "ui_recovered": recovered,
                             "empty_reasoning_items": 5

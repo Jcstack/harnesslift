@@ -124,6 +124,41 @@ Claude account limits. It cannot be assigned Codex semantics by inference.
 Neither an attempt count nor a successful synthetic retry proves an overall
 provider deadline, cancellation safety or hosted-tool idempotency.
 
+#### Empty text and native recovery, 2026-11-07
+
+An owned two-hop Claude Code 2.1.316 interactive control exposed a separate
+translation defect. The previous profile opens a Claude text block for an
+empty Responses `response.content_part.added`; adding that empty event after
+the same reasoning output changes native recovery into a partial-delivery
+stop. An empty `response.output_text.delta` also incorrectly marks a message
+as already streamed, suppressing its whole-item text fallback.
+The [OpenAI event reference](https://developers.openai.com/api/reference/resources/responses/streaming-events)
+documents an initially empty output-text part as a normal stream event.
+
+The [empty-text boundary patch](upstream/patches/empty-text-boundary.patch)
+defers empty text starts and ignores empty deltas as delivered text. It keeps
+the whole-item fallback, nonempty whitespace and valid early URL annotations.
+It adds no replay loop, completion, account/model change or lower effort.
+Local interactive controls recover through the native client, with compared
+model, reasoning, input, tool and cache-key fields unchanged. Headless controls
+cover empty starts and deltas before and after an owned write; the write runs
+once and its result survives. Explicit exhaustion controls stop at their small
+native retry budget and retain an already committed effect.
+
+The optional observer additionally reports `output_text_state` as `none`,
+`empty_only` or `nonempty`, and recognizes text-part and annotation events.
+It never records the text. These states describe only received upstream event
+payloads, including buffered snapshots; they do not establish client delivery,
+useful progress, token usage or safety of another request. Older observations
+retain an unknown state. The parser rejects unknown or extra values.
+
+The [dedicated gate](.github/workflows/empty-text-recovery.yml) contrasts native
+interactive recovery with the previous profile and with real partial text,
+and checks both model mappings, cancellation, exhaustion and managed handoff.
+Three-platform acceptance and local installation are pending. This defect is
+not established as the cause of a real user's earlier interruption, and the
+broader unattended-recovery gates remain open.
+
 #### Cancellation and server retry advice, 2026-11-07
 
 Claude Code also has a separate partial-delivery boundary. Its

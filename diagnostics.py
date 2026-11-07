@@ -30,6 +30,8 @@ ENDPOINTS = {"/v1/messages", "/v1/responses", "/v1/models", "/v1/messages/count_
              "/v1/realtime/client_secrets"}
 STREAM_OBSERVATION_EVENTS = frozenset({"none", "other", "response.created", "response.in_progress",
     "response.output_item.added", "response.output_item.done", "response.output_text.delta",
+    "response.output_text.done", "response.content_part.added", "response.content_part.done",
+    "response.output_text.annotation.added",
     "response.reasoning_summary_text.delta", "response.reasoning_summary_part.added",
     "response.function_call_arguments.delta", "response.completed", "response.done", "response.incomplete", "response.failed",
     "error", "codex.rate_limits", "codex.response.metadata", "response.metadata", "keepalive", "ping"})
@@ -40,12 +42,14 @@ STREAM_OBSERVATION = re.compile(
     r"outcome=(completion_event|terminal_event|incomplete_event|read_error|eof|other) "
     r"last_event=([a-z0-9_.-]{1,64}) (?:prior_event=([a-z0-9_.-]{1,64}) )?data_items=(\d{1,7}) "
     r"elapsed_ms=(\d{1,8}) since_read_ms=(\d{1,8}) (?:event_gap_ms=(\d{1,8}) max_read_gap_ms=(\d{1,8}) )?"
-    r"read_error=(none|unexpected_eof|cancelled|timeout|other)(?: failure_kind=([a-z_]{1,40}))?$")
+    r"read_error=(none|unexpected_eof|cancelled|timeout|other)(?: failure_kind=([a-z_]{1,40}))?"
+    r"(?: output_text_state=(none|empty_only|nonempty))?$")
 BUFFERED_OBSERVATION = re.compile(
     r"codex stream observation: phase=buffered "
     r"outcome=(completion_event|terminal_event|incomplete_event|read_error|eof|other) "
     r"last_event=([a-z0-9_.-]{1,64}) data_items=(\d{1,7}) elapsed_ms=(\d{1,8}) "
-    r"read_error=(none|unexpected_eof|cancelled|timeout|other) failure_kind=([a-z_]{1,40})$")
+    r"read_error=(none|unexpected_eof|cancelled|timeout|other) failure_kind=([a-z_]{1,40})"
+    r"(?: output_text_state=(none|empty_only|nonempty))?$")
 HTTP_OBSERVATION = re.compile(
     r"codex http observation: run=([a-f0-9]{16}) attempt=([1-9]\d{0,19}) "
     r"phase=(dispatch|headers|decode) outcome=(started|returned|ready|error) "
@@ -258,13 +262,13 @@ def stream_observation(line: str) -> dict | None:
     """Read the experimental observer's fixed vocabulary without returning raw input."""
     match = STREAM_OBSERVATION.search(line.rstrip("\r\n"))
     if match:
-        phase, outcome, event, prior, items, elapsed, since_read, event_gap, max_read_gap, read_error, failure_kind = match.groups()
+        phase, outcome, event, prior, items, elapsed, since_read, event_gap, max_read_gap, read_error, failure_kind, text_state = match.groups()
         since_read = int(since_read)
     else:
         match = BUFFERED_OBSERVATION.search(line.rstrip("\r\n"))
         if not match:
             return None
-        outcome, event, items, elapsed, read_error, failure_kind = match.groups()
+        outcome, event, items, elapsed, read_error, failure_kind, text_state = match.groups()
         phase, prior, since_read, event_gap, max_read_gap = "buffered", None, None, None, None
     items, elapsed = map(int, (items, elapsed))
     if (prior is None) != (event_gap is None):
@@ -281,7 +285,8 @@ def stream_observation(line: str) -> dict | None:
         return None
     return {"phase": phase, "outcome": outcome, "last_event": event, "prior_event": prior, "data_items": items,
             "elapsed_ms": elapsed, "since_read_ms": since_read, "event_gap_ms": event_gap,
-            "max_read_gap_ms": max_read_gap, "read_error": read_error, "failure_kind": failure_kind}
+            "max_read_gap_ms": max_read_gap, "read_error": read_error, "failure_kind": failure_kind,
+            "output_text_state": text_state}
 
 
 def proxy_summary(path: Path, since: datetime) -> dict:

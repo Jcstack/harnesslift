@@ -4,6 +4,10 @@ HarnessLift versions describe this wrapper and documentation, independently of t
 
 ## Unreleased
 
+- Defer empty Responses text starts and empty deltas before native Claude
+  delivery, keeping native retry and whole-message fallback available. Preserve
+  valid early URL annotations and expose a fixed upstream text-state category
+  in the optional observer. No gateway replay policy is added.
 - Default new Codex-backed launches to Claude Code's client-side auto classifier
   using the documented route setting. Preserve operator overrides and permission
   rules; do not claim Anthropic server safeguard results or free eligibility.
