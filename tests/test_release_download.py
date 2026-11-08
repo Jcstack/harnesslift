@@ -13,6 +13,7 @@ import urllib.request
 from unittest.mock import patch
 
 import install
+import pinned_download as transport
 
 
 PAYLOAD = b"owned-synthetic-release"
@@ -37,7 +38,7 @@ class ReleaseDownloadTests(unittest.TestCase):
         def builder(*handlers):
             tls = next(handler for handler in handlers if isinstance(handler, urllib.request.HTTPSHandler))
             self.contexts.append(tls._context)
-            self.assertTrue(any(isinstance(handler, install.HTTPSReleaseRedirect) for handler in handlers))
+            self.assertTrue(any(isinstance(handler, transport.HTTPSReleaseRedirect) for handler in handlers))
             return Opener()
 
         with tempfile.TemporaryDirectory() as temporary:
@@ -49,10 +50,10 @@ class ReleaseDownloadTests(unittest.TestCase):
                  patch.object(install.platform, "machine", return_value="AMD64"), \
                  patch.object(install, "ASSETS", {("Windows", "x86_64"): ("windows_amd64", DIGEST)}), \
                  patch.object(install, "ASSET_API_IDS", {("Windows", "x86_64"): 17}), \
-                 patch.object(install.urllib.request, "build_opener", side_effect=builder), \
+                 patch.object(transport.urllib.request, "build_opener", side_effect=builder), \
                  patch.dict(os.environ, {"GITHUB_TOKEN": PRIVATE, "OPENAI_API_KEY": PRIVATE,
                      "SSLKEYLOGFILE": str(root / "must-not-exist")}), \
-                 patch.object(install, "MAX_ARCHIVE_BYTES", limit or install.MAX_ARCHIVE_BYTES):
+                 patch.object(transport, "MAX_ARCHIVE_BYTES", limit or transport.MAX_ARCHIVE_BYTES):
                 try:
                     result = install.verified_archive(root, None)
                     self.assertEqual(result.read_bytes(), PAYLOAD)
@@ -123,7 +124,7 @@ class ReleaseDownloadTests(unittest.TestCase):
         self.assertEqual(len(self.requests), 2)
 
     def test_https_redirects_preserve_the_request_and_refuse_downgrades_or_userinfo(self):
-        handler = install.HTTPSReleaseRedirect()
+        handler = transport.HTTPSReleaseRedirect()
         request = urllib.request.Request("https://github.com/owned", headers={"Accept": "application/octet-stream"})
         valid = handler.redirect_request(request, None, 302, "Found", {}, "https://release-assets.githubusercontent.com/owned")
         self.assertEqual(valid.get_header("Accept"), "application/octet-stream")
@@ -134,6 +135,36 @@ class ReleaseDownloadTests(unittest.TestCase):
     def test_all_pinned_platforms_have_an_official_api_asset_id(self):
         self.assertEqual(set(install.ASSETS), set(install.ASSET_API_IDS))
         self.assertTrue(all(type(value) is int and value > 0 for value in install.ASSET_API_IDS.values()))
+
+    def test_shared_download_refuses_a_symlink_cache_before_network_io(self):
+        with tempfile.TemporaryDirectory() as temporary, \
+             patch.object(Path, "is_symlink", return_value=True), \
+             patch.object(transport.urllib.request, "build_opener") as opener:
+            root = Path(temporary)
+            with self.assertRaisesRegex(RuntimeError, "symlinked"):
+                transport.download_release(root, root / "owned.zip", "https://example.invalid/owned", DIGEST)
+            opener.assert_not_called()
+
+    def test_caller_cannot_raise_the_global_download_bound(self):
+        with tempfile.TemporaryDirectory() as temporary, \
+             patch.object(transport.urllib.request, "build_opener") as opener:
+            root = Path(temporary)
+            with self.assertRaisesRegex(RuntimeError, "limit"):
+                transport.download_release(root, root / "owned.zip", "https://example.invalid/owned", DIGEST,
+                                           max_bytes=transport.MAX_ARCHIVE_BYTES + 1)
+            opener.assert_not_called()
+
+    def test_alternate_url_cannot_select_a_mirror_or_embed_a_credential(self):
+        with tempfile.TemporaryDirectory() as temporary, \
+             patch.object(transport, "download_release") as download:
+            root = Path(temporary)
+            for alternate in ("https://mirror.invalid/owned", "http://api.github.com/repos/a/b/releases/assets/17",
+                    "https://api.github.com/repos/a/b/releases/assets/17?token=" + PRIVATE,
+                    "https://alice:owned@api.github.com/repos/a/b/releases/assets/17"):
+                with self.assertRaisesRegex(RuntimeError, "official asset API") as error:
+                    transport.download_with_api_fallback(root, root / "owned.zip", "https://github.com/owned", alternate, DIGEST)
+                self.assertNotIn(PRIVATE, str(error.exception))
+            download.assert_not_called()
 
 
 if __name__ == "__main__":

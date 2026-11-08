@@ -381,3 +381,13 @@ Synthetic controls cover those boundaries and unchanged pins. One real public
 Windows archive was also fetched through the official API without account
 credentials and matched its existing digest. Native installation acceptance of
 this change remains a separate gate.
+
+The following Windows run passed the main installation/ACL/transport controls,
+then the optional desktop bootstrap independently returned HTTP 504 while
+downloading its pinned runtime. The owned desktop input fixture had not started.
+The same transport is therefore shared by both bootstrap paths in
+[`pinned_download.py`](pinned_download.py). The desktop archive retains its
+original 32 MiB bound, archive digest, per-platform executable digests and
+window/permission checks. Its alternate asset ID was checked against the
+official release digest; no desktop runtime version was changed. Native
+acceptance of this additional path remains separate from the main installer.

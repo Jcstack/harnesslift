@@ -17,14 +17,15 @@ import secrets
 import sys
 import tarfile
 import time
-import urllib.request
 
 import desktop_scope
+import pinned_download
 import runtime_bundle
 
 VERSION = "1.3.0"
 ARCHIVE_SHA = "e800b756424118c9afc9d18950a91a12e954831fbecb6ea2ac060967d325dc1c"
 ARCHIVE_URL = "https://github.com/opensymph/open-computer-use/releases/download/v1.3.0/opensymph-open-computer-use-1.3.0.tgz"
+ARCHIVE_API_URL = "https://api.github.com/repos/opensymph/open-computer-use/releases/assets/650159492"
 BINARIES = {
     "darwin": ("Open Computer Use.app/Contents/MacOS/OpenComputerUse", "16d7d32c085065a7cf92745789785630786d5ba13aef3a3242fd91d7c2257361"),
     "windows-x86_64": ("windows/amd64/open-computer-use.exe", "6bafd71418b85d83ace19937bcae4a4934a153244c14926ffd13e3fbac4da40f"),
@@ -77,11 +78,11 @@ def install(root: Path, archive: Path | None = None):
     if archive is None:
         archive = directory / ("release-" + ARCHIVE_SHA + ".tgz")
         if not archive.exists():
-            with urllib.request.urlopen(ARCHIVE_URL, timeout=60) as response:
-                raw = response.read((32 << 20) + 1)
-            if len(raw) > 32 << 20 or hashlib.sha256(raw).hexdigest() != ARCHIVE_SHA:
-                raise desktop_scope.ScopeError("Desktop archive checksum or size mismatch")
-            runtime_bundle.write_file(archive, raw, 0o600)
+            try:
+                pinned_download.download_with_api_fallback(directory, archive, ARCHIVE_URL,
+                    ARCHIVE_API_URL, ARCHIVE_SHA, max_bytes=32 << 20)
+            except RuntimeError as error:
+                raise desktop_scope.ScopeError(str(error)) from None
     if archive.is_symlink() or not archive.is_file() or archive.stat().st_size > 32 << 20 or runtime_bundle.file_hash(archive) != ARCHIVE_SHA:
         raise desktop_scope.ScopeError("Desktop archive does not match the reviewed release")
     base = directory / VERSION; runtime_bundle.private_dir(base)

@@ -7,6 +7,8 @@ HarnessLift versions describe this wrapper and documentation, independently of t
 - Retry a pinned release download once through GitHub's official asset API
   after HTTP 502/503/504. Use no account credentials, enforce HTTPS and a byte
   limit, and verify the original SHA-256 before replacing a cached archive.
+  Share the transport with optional desktop bootstrap while retaining its
+  stricter archive bound and unchanged executable and window safety checks.
 - Add bounded upstream-request trace reporting and credential-free
   mixed-generation/TLS controls. Discard selection metadata, withhold ambiguous
   log-tag associations and distinguish the outer response trace from the inner

@@ -87,7 +87,13 @@ close the broader unattended-recovery acceptance item.
   Synthetic controls retain TLS verification, suppress key logging, reject
   HTTPS downgrades and oversized/changed bytes, preserve cached bytes and limit
   the alternate request to HTTP 502/503/504. Native installation acceptance is
-  separate; these failures do not diagnose an inference stream.
+  separate; these failures do not diagnose an inference stream. The following
+  Windows run passed main installation but its optional desktop bootstrap
+  independently hit HTTP 504 before the input fixture started. The transport
+  is now shared with that component, retaining its original 32 MiB/archive and
+  executable pins and window checks. A synthetic primary 504 followed by real
+  official API bytes installed and verified the desktop archive in an owned
+  temporary directory without launching an app or selecting a window.
 - [x] Prepare an unselected, privacy-limited immediate-upstream trace candidate.
   Owned mixed-generation/TLS controls distinguish the inner request from the
   outer response trace, retain failures and malformed/missing/duplicate-header

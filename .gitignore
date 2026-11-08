@@ -43,6 +43,7 @@
 !LICENSE
 !config.example.yaml
 !install.py
+!pinned_download.py
 !install.sh
 !launcher.py
 !model_helper.py
