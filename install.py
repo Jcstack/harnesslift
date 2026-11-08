@@ -12,9 +12,12 @@ import platform
 import secrets
 import shlex
 import shutil
+import ssl
 import sys
 import tarfile
 import tempfile
+import urllib.error
+import urllib.parse
 import urllib.request
 import zipfile
 
@@ -29,6 +32,16 @@ ASSETS = {
     ("Windows", "arm64"): ("windows_aarch64", "83ede8ad3f97d9c8c09aa8097c432c9e377f7f5566f7ffbc10a9d9f74e07504c"),
     ("Windows", "x86_64"): ("windows_amd64", "b203fe25bb90ad94dc3a4936bf49d08f0c7eca1a2fc6c923d0b9eca59557c67b"),
 }
+# Official asset IDs belong to VERSION; the SHA-256 pins remain authoritative.
+ASSET_API_IDS = {
+    ("Darwin", "arm64"): 684707228,
+    ("Darwin", "x86_64"): 684709969,
+    ("Linux", "aarch64"): 684706358,
+    ("Linux", "x86_64"): 684707703,
+    ("Windows", "arm64"): 684711415,
+    ("Windows", "x86_64"): 684710145,
+}
+MAX_ARCHIVE_BYTES = 128 * 1024 * 1024
 SOURCE = Path(__file__).resolve().parent
 INSTALL_MARKER = ".claude-codex-http-bridge-install"
 
@@ -79,6 +92,57 @@ def file_hash(path: Path) -> str:
     return digest.hexdigest()
 
 
+def require_https_release_url(url: str) -> None:
+    try:
+        target = urllib.parse.urlsplit(url)
+        valid = target.scheme == "https" and bool(target.hostname) and target.username is None and target.password is None
+    except ValueError:
+        valid = False
+    if not valid:
+        raise RuntimeError("Release download must retain HTTPS without user credentials")
+
+
+class HTTPSReleaseRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        require_https_release_url(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def download_release(root: Path, archive: Path, url: str, expected: str, *, api: bool = False) -> None:
+    # A fresh opener uses no ambient global auth/cookie handler. The public
+    # asset needs no GitHub, Codex or model credential. Keep configured proxies.
+    require_https_release_url(url)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    if sys.version_info >= (3, 13):
+        context.verify_flags |= ssl.VERIFY_X509_PARTIAL_CHAIN | ssl.VERIFY_X509_STRICT
+    context.load_default_certs(ssl.Purpose.SERVER_AUTH)
+    context.keylog_filename = None
+    opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=context), HTTPSReleaseRedirect())
+    headers = {"User-Agent": "claude-codex-http-bridge-installer"}
+    if api:
+        headers["Accept"] = "application/octet-stream"
+    request = urllib.request.Request(url, headers=headers)
+    temporary = None
+    try:
+        with opener.open(request, timeout=60) as response:
+            digest, total = hashlib.sha256(), 0
+            with tempfile.NamedTemporaryFile(dir=root, prefix="download-", delete=False) as handle:
+                temporary = Path(handle.name)
+                while block := response.read(64 * 1024):
+                    total += len(block)
+                    if total > MAX_ARCHIVE_BYTES:
+                        raise RuntimeError("Pinned release archive exceeds its download limit")
+                    digest.update(block)
+                    handle.write(block)
+        if digest.hexdigest() != expected:
+            raise RuntimeError("CLIProxyAPI archive SHA-256 does not match its pinned GitHub release digest")
+        os.replace(temporary, archive)
+        archive.chmod(0o600)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
 def verified_archive(root: Path, offline: Path | None) -> Path:
     system = platform.system()
     machine = platform.machine().lower()
@@ -98,17 +162,24 @@ def verified_archive(root: Path, offline: Path | None) -> Path:
         archive = root / filename
         if not archive.is_file() or file_hash(archive) != expected:
             url = f"https://github.com/router-for-me/CLIProxyAPI/releases/download/v{VERSION}/{filename}"
-            request = urllib.request.Request(url, headers={"User-Agent": "claude-codex-http-bridge-installer"})
-            with urllib.request.urlopen(request, timeout=60) as response:
-                with tempfile.NamedTemporaryFile(dir=root, prefix="download-", delete=False) as handle:
-                    temporary = Path(handle.name)
-                    try:
-                        shutil.copyfileobj(response, handle)
-                    except BaseException:
-                        temporary.unlink(missing_ok=True)
+            try:
+                try:
+                    download_release(root, archive, url, expected)
+                except urllib.error.HTTPError as error:
+                    if error.code not in (502, 503, 504):
                         raise
-            os.replace(temporary, archive)
-            archive.chmod(0o600)
+                    error.close()
+                    asset_id = ASSET_API_IDS.get((system, machine))
+                    if type(asset_id) is not int or asset_id < 1:
+                        raise RuntimeError("No pinned official asset endpoint for this platform") from None
+                    print(f"Pinned release download returned HTTP {error.code}; trying GitHub's official asset API.", file=sys.stderr)
+                    api_url = f"https://api.github.com/repos/router-for-me/CLIProxyAPI/releases/assets/{asset_id}"
+                    download_release(root, archive, api_url, expected, api=True)
+            except urllib.error.HTTPError as error:
+                error.close()
+                raise RuntimeError(f"Pinned release download failed (HTTP {error.code})") from None
+            except urllib.error.URLError:
+                raise RuntimeError("Pinned release download failed (TLS or transport error)") from None
     if file_hash(archive) != expected:
         raise RuntimeError("CLIProxyAPI archive SHA-256 does not match its pinned GitHub release digest")
     return archive

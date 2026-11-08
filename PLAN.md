@@ -80,6 +80,14 @@ close the broader unattended-recovery acceptance item.
 
 ## P0: Availability and investigation
 
+- [x] Prepare a bounded official release-download fallback after two Windows
+  installation attempts stopped at HTTP 504. Official metadata matches all
+  six existing archive digest pins, and a public Windows archive fetched
+  through GitHub's asset API matched its pin without model/account credentials.
+  Synthetic controls retain TLS verification, suppress key logging, reject
+  HTTPS downgrades and oversized/changed bytes, preserve cached bytes and limit
+  the alternate request to HTTP 502/503/504. Native installation acceptance is
+  separate; these failures do not diagnose an inference stream.
 - [x] Prepare an unselected, privacy-limited immediate-upstream trace candidate.
   Owned mixed-generation/TLS controls distinguish the inner request from the
   outer response trace, retain failures and malformed/missing/duplicate-header

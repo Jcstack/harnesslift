@@ -354,3 +354,30 @@ reported separately in [OPERATIONS.md](OPERATIONS.md).
 This arrangement does not by itself repair upstream TLS failures, make every
 cache lookup hit, change an existing client's startup compaction setting, or
 certify every Claude plugin. Those require their own measured checks.
+
+## Pinned installer download fallback
+
+Two native Windows installation attempts at the same runtime revision stopped
+with HTTP 504 while downloading the pinned upstream release. The offline tests
+passed before that boundary; installation, ACL and wrapper checks had not run.
+These are installer download failures, not Codex inference failures.
+
+The installer now permits one alternate request after HTTP 502, 503 or 504,
+using GitHub's documented [release asset API](https://docs.github.com/en/rest/releases/assets#get-a-release-asset)
+with `Accept: application/octet-stream`. The version-specific asset IDs were
+checked against the official release metadata and existing digest pins. Both
+requests use the same immutable SHA-256 requirement. The fallback does not use
+GitHub, Codex or model credentials, an ambient global authentication/cookie
+handler, or a third-party mirror. Configured network proxies remain effective.
+
+A fresh verifying TLS context suppresses TLS key logging. Redirects must retain
+HTTPS without embedded user credentials, and each download is capped at 128 MiB.
+Changed or oversized bytes never replace the cache; temporary files are removed.
+Authentication/rate-limit refusals, other HTTP statuses and TLS/transport failures
+do not trigger this alternate request. A cached valid archive or the existing
+`--archive` option does not require a network request.
+
+Synthetic controls cover those boundaries and unchanged pins. One real public
+Windows archive was also fetched through the official API without account
+credentials and matched its existing digest. Native installation acceptance of
+this change remains a separate gate.
