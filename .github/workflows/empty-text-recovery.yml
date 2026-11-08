@@ -54,8 +54,10 @@ jobs:
           python - <<'PY'
           import subprocess
           import runtime_bundle
-          assert runtime_bundle.PATCHES[-1] == 'empty-text-boundary.patch'
-          for name in runtime_bundle.PATCHES[:-1]:
+          assert 'empty-text-boundary.patch' in runtime_bundle.PATCHES
+          for name in runtime_bundle.PATCHES:
+              if name == 'empty-text-boundary.patch':
+                  continue
               subprocess.run(['git', '-C', 'upstream-source', 'apply', str(runtime_bundle.SOURCE / 'upstream/patches' / name)], check=True)
           PY
           cd upstream-source

@@ -36,7 +36,7 @@ jobs:
         with:
           go-version: '1.27.3'
           cache: false
-      - name: Check bounded parsing and keep the candidate unselected
+      - name: Check bounded private reporting and the reviewed source profile
         run: python -m unittest tests.test_trace_link_fixture tests.test_diagnostics tests.test_http_observation tests.test_runtime_bundle -q
       - name: Install the integrity-locked native client
         shell: bash
@@ -54,8 +54,10 @@ jobs:
           python - <<'PY'
           import subprocess
           import runtime_bundle
-          assert 'codex-upstream-link-candidate.patch' not in runtime_bundle.PATCHES
+          assert 'codex-upstream-link-candidate.patch' in runtime_bundle.PATCHES
           for name in runtime_bundle.PATCHES:
+              if name == 'codex-upstream-link-candidate.patch':
+                  continue
               subprocess.run(['git', '-C', 'upstream-source', 'apply', str(runtime_bundle.SOURCE / 'upstream' / 'patches' / name)], check=True)
           PY
           cd upstream-source
@@ -68,6 +70,8 @@ jobs:
           go build -o "../observed-proxy${{ matrix.suffix }}" ./cmd/server
           cd ../gateway
           go build -o "../trace-ingress${{ matrix.suffix }}" .
+          cd ..
+          python runtime_bundle.py --proxy "observed-proxy${{ matrix.suffix }}" --ingress "trace-ingress${{ matrix.suffix }}" --output trace-bundle
       - name: Race-check privacy, expiry and unchanged response handling
         if: runner.os == 'Linux'
         shell: bash
@@ -86,3 +90,8 @@ jobs:
           set -euo pipefail
           python tests/probe_claude_stream_safety.py --proxy-binary "observed-proxy${{ matrix.suffix }}" --codex-executor --codex-origin-binary "selected-proxy${{ matrix.suffix }}" --codex-managed-policy --case eof_empty_text_part_after_tool --require-recovery --client-timeout 90 --file-output
           python tests/probe_claude_stream_safety.py --proxy-binary "observed-proxy${{ matrix.suffix }}" --codex-executor --codex-origin-binary "selected-proxy${{ matrix.suffix }}" --codex-managed-policy --fixture-model gpt-6-astra --fixture-behaves-as claude-opus-5-5 --case eof_empty_text_part_after_tool --require-recovery --client-timeout 90 --file-output
+      - name: Preserve the stable ingress and an admitted old stream during handoff
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLAUDE_CODEX_STREAM_DIAGNOSTICS=1 python tests/smoke_managed_runtime.py trace-bundle --claude-client --previous-proxy "selected-proxy${{ matrix.suffix }}"

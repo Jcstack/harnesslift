@@ -390,15 +390,17 @@ OpenAI's documented [`x-request-id`](https://developers.openai.com/api/reference
 is a different provider identifier. No availability of that API header on the
 subscription route is inferred here.
 
-An unselected [candidate patch](upstream/patches/codex-upstream-link-candidate.patch)
+The [trace patch](upstream/patches/codex-upstream-link-candidate.patch)
 adds one observation when the existing HTTP call returns. It accepts only a
 single bounded trace with the pinned UUIDv7 shape and a valid date, discards
 the selection timestamp/index, and retains the request UUID in private local
 logs. Missing, repeated, comma-combined, malformed and unavailable headers have
 fixed categories without a guessed identity. It shares the existing finite
 diagnostic window, does not consume bodies or alter headers, and adds no
-request, retry, credential owner, timeout or model change. It is deliberately
-absent from `runtime_bundle.PATCHES` and is not installed on the active host.
+request, retry, credential owner, timeout or model change. After its initial
+unselected acceptance, it was added to the reviewed source profile. Activation
+on the active host remains gated on the reporting and draining-handoff checks
+below; changing repository source does not update a running backend.
 
 The [owned integration fixture](tests/probe_upstream_trace_link.py) places a
 synthetic recording tap between independent proxies, then calls the observed
@@ -414,7 +416,7 @@ retained one completed write and its result across an empty-text failure.
 These are protocol controls, not real account selection, provider latency or
 physical-disconnect measurements.
 
-The [offline accounting fixture](tests/trace_link_fixture.py) keeps UUIDs and
+The [read-only report module](upstream_links.py) keeps UUIDs and
 attempt keys internal. Its output contains categories and permitted numeric
 metadata only. Original access logs expose only a 32-bit UUID suffix, so even
 one observed matching tag is labeled `unique_tag_candidate`, never an exact
@@ -422,6 +424,10 @@ cross-layer identity. Observed collisions, duplicate records, inconsistent
 methods/routes/statuses, skipped lines and bounded-history loss suppress the
 association. Unobserved or rotated records can still hide collisions. This
 does not establish account binding, idempotency, completion or error cause.
+`diagnostics` exposes this separately from temporal stream comparisons and
+retains twelve header-failure records independently of its recent list. Their
+omitted count is not added twice when a record is retained by both lists.
+An HTTP-200 stream can fail later; that is not a header-failure record.
 
 The pinned logger's local filenames and access formatter truncate request IDs.
 Its separate Home request-log payload can retain a full ID together with raw
@@ -440,9 +446,11 @@ a successful full upstream test run. The separate
 [three-platform gate](.github/workflows/upstream-trace-link.yml) builds the
 selected profile and candidate independently and checks native tool recovery.
 Its [run](https://github.com/Jcstack/harnesslift/actions/runs/42462774261) passed
-all three platforms. Production reporting, source-lock promotion and a
-persistent-client draining handoff remain separate gates. Existing live
-diagnostics still use temporal cross-layer comparisons.
+all three platforms for the initial candidate. The source profile now includes
+the patch and the installer includes the report module. A new run adds the
+profile's persistent-client draining handoff; that acceptance and the live
+rollout remain pending. Existing live diagnostics still use temporal
+cross-layer comparisons until the reviewed update is installed.
 
 ### Forwarded incomplete-stream failures
 

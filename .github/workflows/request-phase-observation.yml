@@ -54,7 +54,7 @@ jobs:
           import runtime_bundle
           assert 'codex-http-observation.patch' in runtime_bundle.PATCHES
           for name in runtime_bundle.PATCHES:
-              if name == 'codex-http-observation.patch':
+              if name in ('codex-http-observation.patch', 'codex-upstream-link-candidate.patch'):
                   continue
               subprocess.run(['git', '-C', 'upstream-source', 'apply', str(runtime_bundle.SOURCE / 'upstream' / 'patches' / name)], check=True)
           PY
@@ -63,6 +63,7 @@ jobs:
           go build -o "../previous-${{ matrix.binary }}" ./cmd/server
           git apply --check ../upstream/patches/codex-http-observation.patch
           git apply ../upstream/patches/codex-http-observation.patch
+          git apply ../upstream/patches/codex-upstream-link-candidate.patch
           go test -timeout 180s -run '^(TestBridgeHTTPObservation|TestBridgeStreamObservation|TestCodex)' ./internal/runtime/executor ./internal/runtime/executor/helps
           go test -timeout 180s ./sdk/api/handlers/claude
           go build -o "../${{ matrix.binary }}" ./cmd/server

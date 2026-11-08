@@ -658,6 +658,11 @@ def collect(root: Path, route: str, claude_roots: list[Path], since: datetime,
                         result["stream_timing_correlations"] = correlate_stream_endings(origin_log, detail["backends"], since)
                     except (OSError, ValueError, OverflowError):
                         result["stream_timing_correlations"] = {"metadata_unavailable": True}
+                    try:
+                        import upstream_links
+                        result["upstream_request_links"] = upstream_links.summarize(origin_log, logs, since)
+                    except (OSError, ValueError, OverflowError, ImportError):
+                        result["upstream_request_links"] = {"metadata_unavailable": True}
         except (OSError, RuntimeError, ValueError, ImportError):
             result["managed"] = {"metadata_unavailable": True}
     if not include_sessions:

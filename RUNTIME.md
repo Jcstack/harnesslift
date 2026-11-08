@@ -112,6 +112,14 @@ not add gateway replay, migrate the credential owner or establish complete
 live-installer atomicity.
 [Scope and recovery boundaries](STREAMING.md#empty-text-and-native-recovery-2026-11-07).
 
+The next source profile includes a bounded immediate-upstream request-link
+observer and read-only reporting. It discards the trace's credential-selection
+prefix and labels a unique short-log-tag match as a candidate association.
+It never authorizes retry or account changes. The initial three-platform
+candidate gate passed; production reporting, source-profile promotion and
+persistent-client draining checks are prepared separately before installation.
+[Evidence and boundaries](STREAMING.md#candidate-upstream-request-links-2026-11-08).
+
 An isolated Claude Code 2.1.316 probe found a possible future migration path:
 when its user settings file changed, an ordinary long-running client completed
 an already-started fake HTTP stream, then used a new authenticated fake HTTPS

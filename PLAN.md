@@ -92,8 +92,10 @@ close the broader unattended-recovery acceptance item.
   Codex/observer race checks passed; an unrelated broader Devin diagnostic
   test failed in both the unchanged baseline and candidate. The
   [three-platform candidate acceptance](https://github.com/Jcstack/harnesslift/actions/runs/42462774261)
-  passed. Production reporting, source-lock promotion and a persistent-client
-  draining handoff remain separate gates; the active bundle is unchanged.
+  passed. Read-only production reporting and source-profile promotion are now
+  prepared, with separate retained header failures and a source-locked bundle.
+  Three-platform promotion, installed-source and persistent-client draining
+  checks precede any live rollout; the active bundle is unchanged.
   See [STREAMING.md](STREAMING.md#candidate-upstream-request-links-2026-11-08).
 - [x] Reproduce an empty-text delivery defect in an owned two-hop native
   interactive client. The previous profile stops after an empty part start or
