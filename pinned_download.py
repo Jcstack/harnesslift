@@ -74,21 +74,36 @@ def download_release(root: Path, archive: Path, url: str, expected: str, *, api:
 
 def download_with_api_fallback(root: Path, archive: Path, primary: str, alternate: str | None,
                                expected: str, *, max_bytes: int | None = None) -> None:
-    """Allow one official alternate after a gateway refusal, retaining the pin."""
+    """Allow one official alternate after a gateway refusal or typed timeout."""
     if alternate is not None and not re.fullmatch(
             r"https://api\.github\.com/repos/[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}/releases/assets/[1-9][0-9]{0,19}", alternate):
         raise RuntimeError("Alternate release download must use GitHub's official asset API")
     try:
+        fallback = None
         try:
             download_release(root, archive, primary, expected, max_bytes=max_bytes)
         except urllib.error.HTTPError as error:
             if error.code not in (502, 503, 504) or alternate is None:
                 raise
             error.close()
-            print(f"Pinned release download returned HTTP {error.code}; trying GitHub's official asset API.", file=sys.stderr)
+            fallback = f"returned HTTP {error.code}"
+        except urllib.error.URLError as error:
+            # urllib wraps connection timeouts but a response-body read can
+            # raise TimeoutError directly. Never classify by an error string.
+            if not isinstance(error.reason, TimeoutError) or alternate is None:
+                raise
+            fallback = "timed out"
+        except TimeoutError:
+            if alternate is None:
+                raise
+            fallback = "timed out"
+        if fallback is not None:
+            print(f"Pinned release download {fallback}; trying GitHub's official asset API.", file=sys.stderr)
             download_release(root, archive, alternate, expected, api=True, max_bytes=max_bytes)
     except urllib.error.HTTPError as error:
         error.close()
         raise RuntimeError(f"Pinned release download failed (HTTP {error.code})") from None
-    except urllib.error.URLError:
+    except (urllib.error.URLError, ssl.SSLError):
         raise RuntimeError("Pinned release download failed (TLS or transport error)") from None
+    except TimeoutError:
+        raise RuntimeError("Pinned release download failed (network timeout)") from None

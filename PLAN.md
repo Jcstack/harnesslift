@@ -86,7 +86,7 @@ close the broader unattended-recovery acceptance item.
   through GitHub's asset API matched its pin without model/account credentials.
   Synthetic controls retain TLS verification, suppress key logging, reject
   HTTPS downgrades and oversized/changed bytes, preserve cached bytes and limit
-  the alternate request to HTTP 502/503/504. Native installation acceptance is
+  the alternate request to HTTP 502/503/504 or typed network timeouts. Native installation acceptance is
   separate; these failures do not diagnose an inference stream. The following
   Windows run passed main installation but its optional desktop bootstrap
   independently hit HTTP 504 before the input fixture started. The transport
@@ -99,6 +99,12 @@ close the broader unattended-recovery acceptance item.
   historical sets remain immutable and usable, while mixed snapshots missing
   a known imported helper are rejected. Locked-environment stdio MCP/PDF
   acceptance precedes promotion.
+  The following three-platform capability gate passed, including owned native
+  Windows desktop input. Linux and Windows fresh installation separately
+  stopped at archive read timeouts, before installation. The shared transport
+  now recognizes typed direct/wrapped timeouts and permits only its existing
+  one official alternate; certificate errors and arbitrary error strings
+  remain refusals. A timed-out partial body is discarded, preserving the cache.
 - [x] Prepare an unselected, privacy-limited immediate-upstream trace candidate.
   Owned mixed-generation/TLS controls distinguish the inner request from the
   outer response trace, retain failures and malformed/missing/duplicate-header

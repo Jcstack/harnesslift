@@ -362,7 +362,8 @@ with HTTP 504 while downloading the pinned upstream release. The offline tests
 passed before that boundary; installation, ACL and wrapper checks had not run.
 These are installer download failures, not Codex inference failures.
 
-The installer now permits one alternate request after HTTP 502, 503 or 504,
+The installer now permits one alternate request after HTTP 502, 503 or 504
+or a typed connection/read timeout,
 using GitHub's documented [release asset API](https://docs.github.com/en/rest/releases/assets#get-a-release-asset)
 with `Accept: application/octet-stream`. The version-specific asset IDs were
 checked against the official release metadata and existing digest pins. Both
@@ -373,8 +374,11 @@ handler, or a third-party mirror. Configured network proxies remain effective.
 A fresh verifying TLS context suppresses TLS key logging. Redirects must retain
 HTTPS without embedded user credentials, and each download is capped at 128 MiB.
 Changed or oversized bytes never replace the cache; temporary files are removed.
-Authentication/rate-limit refusals, other HTTP statuses and TLS/transport failures
-do not trigger this alternate request. A cached valid archive or the existing
+Authentication/rate-limit refusals, other HTTP statuses, TLS failures and
+unclassified transport errors do not trigger this alternate request. A timeout
+is recognized by its exception type, including urllib's typed cause, rather
+than its message. A timeout on the alternate request never triggers another
+attempt. A cached valid archive or the existing
 `--archive` option does not require a network request.
 
 Synthetic controls cover those boundaries and unchanged pins. One real public
@@ -401,9 +405,18 @@ than permitting an import to fall through to the working directory or
 `PYTHONPATH`. Real stdio MCP/PDF controls run with the locked dependency
 environment and an untrusted workspace import fixture.
 
-Local acceptance passed 464 tests with 12 platform/fixture skips in the locked
-environment. A separate 90-check installed-source overlay and a real frozen
+Local acceptance passed 467 tests with 12 platform/fixture skips in the locked
+environment. A separate 93-check installed-source overlay and a real frozen
 stdio MCP/PDF exchange passed; neither the workspace's helper nor its
 `sitecustomize` fixture executed. The existing selected capability snapshot
 remained readable and unchanged. Cross-platform source/install acceptance
 remains required before deployment.
+
+The next three-platform capability jobs passed, including real Windows desktop
+input against the owned fixture. The separate Linux and Windows fresh-install
+jobs both stopped while reading the public archive, before installation, with a
+typed read timeout. This exposed the missing timeout branch above. Synthetic
+controls cover a partial body followed by a timeout, temporary-file cleanup,
+unchanged cached bytes, certificate-error refusal and the two-request limit.
+A typed-timeout fixture followed by real, credential-free official API bytes
+also matched the existing Linux archive digest; the binary was not executed.

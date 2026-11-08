@@ -33,7 +33,7 @@ class ReleaseDownloadTests(unittest.TestCase):
                 reply = replies[len(self.requests) - 1]
                 if isinstance(reply, BaseException):
                     raise reply
-                return io.BytesIO(reply)
+                return io.BytesIO(reply) if isinstance(reply, bytes) else reply
 
         def builder(*handlers):
             tls = next(handler for handler in handlers if isinstance(handler, urllib.request.HTTPSHandler))
@@ -102,10 +102,54 @@ class ReleaseDownloadTests(unittest.TestCase):
             self.assertTrue(error.fp.closed)
 
     def test_tls_or_transport_error_does_not_try_another_endpoint(self):
-        with self.assertRaisesRegex(RuntimeError, "TLS or transport") as failure:
-            self.run_archive([urllib.error.URLError(PRIVATE)])
-        self.assertNotIn(PRIVATE, str(failure.exception))
-        self.assertEqual(len(self.requests), 1)
+        for error in (urllib.error.URLError(PRIVATE), ssl.SSLCertVerificationError(PRIVATE),
+                      urllib.error.URLError(ssl.SSLCertVerificationError(PRIVATE)),
+                      urllib.error.URLError("timed out " + PRIVATE)):
+            with self.subTest(error=type(error).__name__), self.assertRaisesRegex(RuntimeError, "TLS or transport") as failure:
+                self.run_archive([error])
+            self.assertNotIn(PRIVATE, str(failure.exception))
+            self.assertEqual(len(self.requests), 1)
+
+    def test_typed_connection_and_body_timeouts_allow_one_pinned_alternate(self):
+        class InterruptedBody(io.BytesIO):
+            def __init__(self):
+                super().__init__(b"owned-partial-body")
+                self.reads = 0
+
+            def read(self, size=-1):
+                self.reads += 1
+                if self.reads > 1:
+                    raise TimeoutError(PRIVATE)
+                return super().read(size)
+
+        for error in (TimeoutError(PRIVATE), urllib.error.URLError(TimeoutError(PRIVATE))):
+            with self.subTest(error=type(error).__name__):
+                self.assertTrue(self.run_archive([error, PAYLOAD], existing=b"retain-owned-file"))
+                self.assertEqual(len(self.requests), 2)
+                self.assertFalse(self.temporary_files)
+        body = InterruptedBody()
+        self.assertTrue(self.run_archive([body, PAYLOAD], existing=b"retain-owned-file"))
+        self.assertTrue(body.closed)
+        self.assertFalse(self.temporary_files)
+        self.assertEqual(len(self.requests), 2)
+
+    def test_alternate_timeout_never_loops_or_replaces_cached_bytes(self):
+        for error in (TimeoutError(PRIVATE), urllib.error.URLError(TimeoutError(PRIVATE))):
+            with self.subTest(error=type(error).__name__), self.assertRaisesRegex(RuntimeError, "timeout|transport") as failure:
+                self.run_archive([TimeoutError(PRIVATE), error], existing=b"retain-owned-file")
+            self.assertNotIn(PRIVATE, str(failure.exception))
+            self.assertEqual(len(self.requests), 2)
+            self.assertEqual(self.remaining_archive, b"retain-owned-file")
+            self.assertFalse(self.temporary_files)
+
+    def test_timeout_without_a_reviewed_alternate_fails_once(self):
+        with tempfile.TemporaryDirectory() as temporary, \
+             patch.object(transport, "download_release", side_effect=TimeoutError(PRIVATE)) as download:
+            root = Path(temporary)
+            with self.assertRaisesRegex(RuntimeError, "network timeout") as failure:
+                transport.download_with_api_fallback(root, root / "owned.zip", "https://github.com/owned", None, DIGEST)
+            self.assertNotIn(PRIVATE, str(failure.exception))
+            self.assertEqual(download.call_count, 1)
 
     def test_changed_or_oversized_bytes_never_replace_cached_bytes(self):
         for payload, limit in ((b"changed", None), (PAYLOAD, 3)):
