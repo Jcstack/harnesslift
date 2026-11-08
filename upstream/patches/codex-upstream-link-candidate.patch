@@ -1,0 +1,198 @@
+diff --git a/internal/runtime/executor/helps/codex_http_observation.go b/internal/runtime/executor/helps/codex_http_observation.go
+--- a/internal/runtime/executor/helps/codex_http_observation.go
++++ b/internal/runtime/executor/helps/codex_http_observation.go
+@@ -102,6 +102,7 @@
+ 	if err == nil && response != nil {
+ 		outcome, d.nextPhase = "returned", 2
+ 	}
++	d.observeUpstreamLink(response, err, now)
+ 	d.emit(ctx, "headers", outcome, err, d.started, now)
+ }
+ 
+diff --git a/internal/runtime/executor/helps/codex_upstream_link.go b/internal/runtime/executor/helps/codex_upstream_link.go
+new file mode 100644
+--- /dev/null
++++ b/internal/runtime/executor/helps/codex_upstream_link.go
+@@ -0,0 +1,64 @@
++package helps
++
++// Candidate only: inspect a proxy's response trace without retaining its
++// credential-selection prefix. This is neither account binding nor replay.
++
++import (
++	"fmt"
++	"net/http"
++	"regexp"
++	"strings"
++	"time"
++
++	log "github.com/sirupsen/logrus"
++)
++
++var codexProxyTraceShape = regexp.MustCompile(`^[0-9]{14}-[A-Za-z0-9_-]{1,64}-([0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$`)
++
++// codexProxyRequestLink deliberately supports only the pinned proxy's UUIDv7
++// shape. Missing, duplicate and changed formats are not guessed. The request
++// UUID is local proxy metadata, not OpenAI's x-request-id or an auth index.
++func codexProxyRequestLink(response *http.Response, err error) (string, string) {
++	if response == nil || err != nil {
++		return "unavailable", "none"
++	}
++	count, value := 0, ""
++	for name, values := range response.Header {
++		if strings.EqualFold(name, "X-CPA-TRACE-ID") {
++			if len(values) != 1 || count != 0 {
++				return "multiple", "none"
++			}
++			count, value = 1, values[0]
++		}
++	}
++	if count == 0 {
++		return "absent", "none"
++	}
++	if len(value) > 116 {
++		return "invalid", "none"
++	}
++	match := codexProxyTraceShape.FindStringSubmatch(value)
++	if match == nil {
++		return "invalid", "none"
++	}
++	if _, errParse := time.Parse("20060102150405", value[:14]); errParse != nil {
++		return "invalid", "none"
++	}
++	return "uuid", strings.Clone(match[1])
++}
++
++// observeUpstreamLink is reached once by Returned. No body is consumed, no
++// header is rewritten, and the existing finite observation window applies.
++func (d *CodexHTTPObservation) observeUpstreamLink(response *http.Response, err error, now time.Time) {
++	if d == nil || !now.Before(d.expires) {
++		return
++	}
++	state, requestID := codexProxyRequestLink(response, err)
++	message := fmt.Sprintf("codex upstream link observation: run=%s attempt=%d route=%s status=%d trace_state=%s upstream_request=%s",
++		d.run, d.attempt, d.route, d.status, state, requestID)
++	entry := log.NewEntry(log.StandardLogger())
++	if d.requestTag != "" {
++		entry = entry.WithField("request_id", d.requestTag)
++	}
++	entry.Info(message)
++}
+diff --git a/internal/runtime/executor/helps/codex_upstream_link_test.go b/internal/runtime/executor/helps/codex_upstream_link_test.go
+new file mode 100644
+--- /dev/null
++++ b/internal/runtime/executor/helps/codex_upstream_link_test.go
+@@ -0,0 +1,113 @@
++package helps
++
++import (
++	"context"
++	"errors"
++	"net/http"
++	"reflect"
++	"strings"
++	"sync"
++	"testing"
++	"time"
++
++	log "github.com/sirupsen/logrus"
++)
++
++const linkFixtureUUID = "01950000-0000-7000-8000-1234aabbccdd"
++const linkFixturePrefix = "20260102120000-SYNTHETIC_AUTH_INDEX-"
++
++func TestBridgeUpstreamLinkStrictShapes(t *testing.T) {
++	valid := linkFixturePrefix + linkFixtureUUID
++	cases := []struct {
++		name, state string
++		header      http.Header
++	}{
++		{"valid", "uuid", http.Header{"X-Cpa-Trace-Id": {valid}}},
++		{"case insensitive", "uuid", http.Header{"x-cpa-trace-id": {valid}}},
++		{"absent", "absent", nil},
++		{"empty list", "multiple", http.Header{"X-Cpa-Trace-Id": {}}},
++		{"repeated equal", "multiple", http.Header{"X-Cpa-Trace-Id": {valid, valid}}},
++		{"case duplicates", "multiple", http.Header{"X-Cpa-Trace-Id": {valid}, "x-cpa-trace-id": {valid}}},
++		{"empty", "invalid", http.Header{"X-Cpa-Trace-Id": {""}}},
++		{"comma", "invalid", http.Header{"X-Cpa-Trace-Id": {valid + "," + valid}}},
++		{"private", "invalid", http.Header{"X-Cpa-Trace-Id": {httpObservationSecret}}},
++		{"bad date", "invalid", http.Header{"X-Cpa-Trace-Id": {strings.Replace(valid, "20260102", "20261399", 1)}}},
++		{"other uuid version", "invalid", http.Header{"X-Cpa-Trace-Id": {strings.Replace(valid, "-7000-", "-4000-", 1)}}},
++		{"other uuid variant", "invalid", http.Header{"X-Cpa-Trace-Id": {strings.Replace(valid, "-8000-", "-0000-", 1)}}},
++		{"leading space", "invalid", http.Header{"X-Cpa-Trace-Id": {" " + valid}}},
++		{"trailing data", "invalid", http.Header{"X-Cpa-Trace-Id": {valid + "-" + httpObservationSecret}}},
++		{"unbounded index", "invalid", http.Header{"X-Cpa-Trace-Id": {"20260102120000-" + strings.Repeat("x", 65) + "-" + linkFixtureUUID}}},
++	}
++	for _, test := range cases {
++		t.Run(test.name, func(t *testing.T) {
++			original := test.header.Clone()
++			response := &http.Response{Header: test.header}
++			state, id := codexProxyRequestLink(response, nil)
++			wantID := "none"
++			if test.state == "uuid" {
++				wantID = linkFixtureUUID
++			}
++			if state != test.state || id != wantID || !reflect.DeepEqual(original, response.Header) {
++				t.Fatal("trace classification changed or response headers were modified")
++			}
++			if state, id = codexProxyRequestLink(response, errors.New(httpObservationSecret)); state != "unavailable" || id != "none" {
++				t.Fatal("a Client.Do error was used as a successful trace boundary")
++			}
++		})
++	}
++	if state, id := codexProxyRequestLink(nil, nil); state != "unavailable" || id != "none" {
++		t.Fatal("nil response invented a trace")
++	}
++}
++
++type upstreamLinkHook struct {
++	mu       sync.Mutex
++	messages []string
++}
++
++func (*upstreamLinkHook) Levels() []log.Level { return log.AllLevels }
++func (h *upstreamLinkHook) Fire(entry *log.Entry) error {
++	if strings.HasPrefix(entry.Message, "codex upstream link observation:") {
++		h.mu.Lock()
++		h.messages = append(h.messages, entry.Message)
++		h.mu.Unlock()
++	}
++	return nil
++}
++
++func TestBridgeUpstreamLinkOneRecordPrivacyAndWindow(t *testing.T) {
++	captureHTTPObservations(t)
++	h := &upstreamLinkHook{}
++	log.StandardLogger().AddHook(h)
++	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, "http://example.invalid/v1/responses", nil)
++	body := &httpObservationBody{}
++	response := &http.Response{StatusCode: 200, Header: http.Header{
++		"X-Cpa-Trace-Id": {linkFixturePrefix + linkFixtureUUID}, "Set-Cookie": {httpObservationSecret}}, Body: body}
++	d := NewCodexHTTPObservation(req)
++	if d == nil {
++		t.Fatal("observation unexpectedly disabled")
++	}
++	d.Returned(req.Context(), response, nil)
++	d.Returned(req.Context(), response, nil)
++	d.Decode(req.Context(), func() error { return nil })
++	if len(h.messages) != 1 || body.reads+body.closes != 0 || response.Body != body {
++		t.Fatal("link observation repeated or consumed a body")
++	}
++	message := h.messages[0]
++	if !strings.HasSuffix(message, "trace_state=uuid upstream_request="+linkFixtureUUID) ||
++		strings.Contains(message, "SYNTHETIC_AUTH_INDEX") || strings.Contains(message, "20260102120000") || strings.Contains(message, httpObservationSecret) {
++		t.Fatal("credential-selection metadata escaped or request UUID was lost")
++	}
++	expired := NewCodexHTTPObservation(req)
++	expired.expires = time.Now().Add(-time.Second)
++	expired.Returned(req.Context(), response, nil)
++	t.Setenv("CLAUDE_CODEX_STREAM_DIAGNOSTICS", "0")
++	disabled := NewCodexHTTPObservation(req)
++	if disabled != nil {
++		t.Fatal("candidate enabled without the finite opt-in observer")
++	}
++	disabled.Returned(req.Context(), response, nil)
++	if len(h.messages) != 1 {
++		t.Fatal("expired or disabled observation emitted a link")
++	}
++}

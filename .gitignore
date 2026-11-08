@@ -142,6 +142,7 @@
 !upstream/patches/browser-state-candidate.patch
 !upstream/patches/antigravity-lazy-candidate.patch
 !upstream/patches/codex-stream-observation-candidate.patch
+!upstream/patches/codex-upstream-link-candidate.patch
 !upstream/patches/forwarded-incomplete-stream-candidate.patch
 !upstream/patches/claude-error-compat.patch
 !upstream/patches/retry-advice-candidate.patch
@@ -187,4 +188,5 @@
 !.github/workflows/auto-classifier-compatibility.yml
 !.github/workflows/empty-text-recovery.yml
 !.github/workflows/tls-bootstrap-observation.yml
+!.github/workflows/upstream-trace-link.yml
 !upstream/patches/empty-text-boundary.patch

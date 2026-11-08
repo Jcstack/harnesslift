@@ -378,6 +378,61 @@ error or recovery of the same request. Actual timing and request-link details
 remain in the private audit. The physical cause and unattended-recovery gate
 remain open.
 
+### Candidate upstream request links, 2026-11-08
+
+The pinned proxy's response trace includes a selection timestamp, credential
+index and local request UUID. Its implementation is in
+[`cpa_trace.go`](https://github.com/router-for-me/CLIProxyAPI/blob/9717e325ba6ab2c7483ea93ccb5f2047eb2e7dd5/internal/logging/cpa_trace.go).
+The trace returned to a client through two proxy hops identifies the outer
+proxy's selection and request. It does not expose the inner request by itself.
+An incoming caller-supplied trace is not a substitute for the generated one.
+OpenAI's documented [`x-request-id`](https://developers.openai.com/api/reference/overview#debugging-requests)
+is a different provider identifier. No availability of that API header on the
+subscription route is inferred here.
+
+An unselected [candidate patch](upstream/patches/codex-upstream-link-candidate.patch)
+adds one observation when the existing HTTP call returns. It accepts only a
+single bounded trace with the pinned UUIDv7 shape and a valid date, discards
+the selection timestamp/index, and retains the request UUID in private local
+logs. Missing, repeated, comma-combined, malformed and unavailable headers have
+fixed categories without a guessed identity. It shares the existing finite
+diagnostic window, does not consume bodies or alter headers, and adds no
+request, retry, credential owner, timeout or model change. It is deliberately
+absent from `runtime_bundle.PATCHES` and is not installed on the active host.
+
+The [owned integration fixture](tests/probe_upstream_trace_link.py) places a
+synthetic recording tap between independent proxies, then calls the observed
+outer proxy through the actual authenticated TLS ingress with certificate and
+hostname verification. Local controls passed streamed and buffered completion,
+reasoning-only EOF, a 503, absent/duplicate/invalid/combined trace headers and
+two concurrent calls. Each made one provider-fixture request, with no fabricated
+completion after EOF. The outer and inner UUIDs stayed distinct. The same
+controls passed with a byte-identical copy of the retained origin executable
+using disposable configuration and synthetic keys; its running process was
+not touched. Native Sol/Sonnet and Astra/Opus compatibility fixtures also
+retained one completed write and its result across an empty-text failure.
+These are protocol controls, not real account selection, provider latency or
+physical-disconnect measurements.
+
+The [offline accounting fixture](tests/trace_link_fixture.py) keeps UUIDs and
+attempt keys internal. Its output contains categories and permitted numeric
+metadata only. Original access logs expose only a 32-bit UUID suffix, so even
+one observed matching tag is labeled `unique_tag_candidate`, never an exact
+cross-layer identity. Observed collisions, duplicate records, inconsistent
+methods/routes/statuses, skipped lines and bounded-history loss suppress the
+association. Unobserved or rotated records can still hide collisions. This
+does not establish account binding, idempotency, completion or error cause.
+
+The local Codex/observer Go race suites, helper suite, build and focused Python
+checks passed. A broader upstream executor run failed the Devin raw-newline
+nonstream diagnostic test. That same test failed independently in both the
+unchanged selected-source baseline and this candidate; it is not reported as
+a successful full upstream test run. The separate
+[three-platform gate](.github/workflows/upstream-trace-link.yml) builds the
+selected profile and candidate independently and checks native tool recovery.
+Its acceptance and any production parser/source-lock/rollout remain separate
+gates. Existing live diagnostics still use temporal cross-layer comparisons.
+
 ### Forwarded incomplete-stream failures
 
 A credential-free [two-layer fixture](tests/probe_opaque_reasoning_stream.py)

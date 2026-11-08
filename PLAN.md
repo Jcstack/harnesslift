@@ -80,6 +80,19 @@ close the broader unattended-recovery acceptance item.
 
 ## P0: Availability and investigation
 
+- [x] Prepare an unselected, privacy-limited immediate-upstream trace candidate.
+  Owned mixed-generation/TLS controls distinguish the inner request from the
+  outer response trace, retain failures and malformed/missing/duplicate-header
+  categories, and preserve one provider-fixture attempt under concurrency.
+  A byte-identical retained-origin fixture and native Sol/Astra tool-recovery
+  controls passed locally. Offline accounting rejects observed collisions,
+  duplicates and incomplete coverage without exporting UUIDs or selection
+  indexes. Original access logs retain only a 32-bit suffix, so a unique match
+  is a candidate association, not exact identity or account binding. Local
+  Codex/observer race checks passed; an unrelated broader Devin diagnostic
+  test failed in both the unchanged baseline and candidate. Three-platform
+  acceptance, production reporting and any live rollout remain separate gates.
+  See [STREAMING.md](STREAMING.md#candidate-upstream-request-links-2026-11-08).
 - [x] Reproduce an empty-text delivery defect in an owned two-hop native
   interactive client. The previous profile stops after an empty part start or
   empty delta following reasoning; the candidate preserves native recovery.

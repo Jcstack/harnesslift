@@ -4,6 +4,10 @@ HarnessLift versions describe this wrapper and documentation, independently of t
 
 ## Unreleased
 
+- Add an unselected, bounded upstream-request trace candidate and credential-free
+  mixed-generation/TLS controls. Discard selection metadata, withhold ambiguous
+  log-tag associations and distinguish the outer response trace from the inner
+  request. Existing runtime source locks and live reporting are unchanged.
 - Defer empty Responses text starts and empty deltas before native Claude
   delivery, keeping native retry and whole-message fallback available. Preserve
   valid early URL annotations and expose a fixed upstream text-state category
