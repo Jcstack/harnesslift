@@ -16,17 +16,19 @@
 
 Keep Claude Code as your coding harness: its terminal, local tools, permissions, MCP servers, skills, hooks, and subagents. HarnessLift translates model requests through a private local HTTP bridge to the Codex backend. Claude Code executes the work; Codex supplies the model.
 
+For developers who already have Codex access in their ChatGPT account and want to keep Claude Code's local workflow.
+
 **Developer preview.** This is a working integration with documented limits, including unresolved upstream stream interruptions. It does not establish feature parity with a native Claude model or reliable unattended recovery. Start with the [compatibility matrix](COMPATIBILITY.md) and [streaming status](STREAMING.md).
 
 Previously `claude-codex-http-bridge`. The `claude-codex` command remains compatible; existing installation directories, accounts, environment settings, and service identities keep their names.
 
 <p align="center">
-  <img src="assets/walkthrough.gif" width="960" alt="Synthetic walkthrough of the real Claude Code client: model picker, local tool call, and status line">
+  <img src="assets/provider-check.png" width="960" alt="Real provider-backed first-task check: three starting failures become five passing tests with Claude Code Read, Edit and Bash tools">
 </p>
 
-*The walkthrough uses the real Claude Code client and a scripted local model. It makes no provider calls and shows no real account, quota, prompt, or performance measurement. [Recording details](assets/README.md).*
+*Real provider-backed check: Claude Code 2.1.316 called `Read`, `Edit` and `Bash` through the existing HarnessLift subscription route, requested `gpt-6.1-sol` at high effort, and repaired an owned five-test exercise without changing the tests. This is a rendered headless verification summary from one macOS run, not a recording or benchmark. [Evidence and scope](assets/README.md#real-provider-check).*
 
-[Try the preview](#quick-start) · [Check compatibility](COMPATIBILITY.md) · [Share first-run feedback](https://github.com/Jcstack/harnesslift/issues/new?template=trial_feedback.yml)
+[Install](#quick-start) · [Try the small repair task](examples/first-task) · [Check compatibility](COMPATIBILITY.md) · [Share first-run feedback](https://github.com/Jcstack/harnesslift/issues/new?template=trial_feedback.yml)
 
 ## Why HarnessLift?
 
@@ -117,11 +119,21 @@ Try a small task in a disposable project with normal Claude Code permissions. Us
 
 **Can I use Codex models as Claude Code's backend?** Yes. HarnessLift supplies the model route through a local HTTP bridge. Claude Code remains responsible for the local workflow and tool permissions.
 
+**Do I need an OpenAI API key?** The Codex subscription route uses your own Codex browser login. A separate project-key route has its own setup and billing; it is optional. Your account must provide access to the requested model.
+
 **Which model is answering?** The provider is Codex/OpenAI. Model behavior and quality can differ from Claude; this integration does not establish Opus equivalence. Use the eligible catalog and [compatibility matrix](COMPATIBILITY.md) to check the current scope.
 
 **How does this compare with a Codex MCP agent?** This project routes Claude Code's model requests to Codex-backed inference. It does not launch a separate Codex coding agent to carry out delegated tasks.
 
 **Does a local bridge keep inference offline?** Model requests and relevant context still reach OpenAI. Local credential storage and loopback binding do not isolate other programs running as your user. [Security boundaries](SECURITY.md).
+
+## Interface walkthrough
+
+<p align="center">
+  <img src="assets/walkthrough.gif" width="960" alt="Synthetic walkthrough of the real Claude Code client: model picker, local tool call, and status line">
+</p>
+
+*This separate walkthrough uses the real Claude Code client and a scripted local model. It makes no provider calls and shows no real account, quota, prompt or performance measurement. [Recording details](assets/README.md).*
 
 ## Security and privacy
 

@@ -1,6 +1,28 @@
 # HarnessLift adoption plan
 
-Maintainer working document. Sources checked on 2026-11-06. Posting destinations and rules must be rechecked immediately before use. Drafts below have not been posted.
+Maintainer working document. Sources and public publication status rechecked on 2026-11-08. Posting destinations and rules must be rechecked immediately before use. The approved r/codex comment is public; the r/ClaudeCode draft below has not been posted.
+
+## Current publication and next action
+
+The approved [r/codex Showcase comment](https://www.reddit.com/r/codex/comments/1xmyhim/comment/19s8a5hg2sgap/)
+was publicly visible when rechecked on 2026-11-08. This corrects the stale
+"not posted" status in this document. Cached relative timestamps differ
+between views, so the exact publication time is not inferred from them.
+Do not repost the same comment to compensate for low visible engagement.
+
+Owner traffic and first-run reports were reviewed privately. The sample does
+not establish a conversion rate or show that packaging, naming or model
+demand is the dominant blocker. Clone totals are not adoption counts, and a
+missing referrer entry is not proof that a community sent no visitors. No
+private traffic numbers, account details or installation telemetry are added
+to Git.
+
+The next experiment is one distinct, owner-approved introduction to the
+Claude Code audience, using the real provider-backed check and a small
+reproducible repair task. Seek a voluntary first-run result and respond to
+actual blockers. Recheck the current weekly thread and rules before posting;
+a new destination requires explicit publication authorization. Keep the name
+and existing links stable while collecting that evidence.
 
 ## Objective
 
@@ -31,11 +53,13 @@ Avoid claims of free Claude inference, unlimited quota, official provider endors
 ## What can be shown today
 
 - Public source and [preview release](https://github.com/Jcstack/harnesslift/releases/tag/v0.1.0-preview.1), with installation instructions and a feature matrix.
-- The completed [three-platform CI run](https://github.com/Jcstack/harnesslift/actions/runs/42064683619), including Linux/Windows installation and command checks. CI does not establish real account entitlement or provider quality.
-- The [synthetic real-client walkthrough](assets/README.md). Keep its scripted-model label visible. It is not evidence of actual model speed or task quality.
+- The completed [three-platform implementation CI run](https://github.com/Jcstack/harnesslift/actions/runs/42473963595), including Linux/Windows installation and command checks. CI does not establish real account entitlement or provider quality.
+- A [real provider-backed first-task check](assets/README.md#real-provider-check): the native Claude Code client used Read/Edit/Bash, repaired the owned exercise, and passed five unchanged tests. The published card is a rendered headless result summary, not a recording, speed or quality benchmark. It used the existing reviewed macOS runtime, not a fresh default installation.
+- The separate [synthetic real-client walkthrough](assets/README.md). Keep its scripted-model label visible. It is not evidence of actual model speed or task quality.
+- A [small first-run task](examples/first-task) that needs only the Python standard library and contains no private project data.
 - A short [first-run feedback form](https://github.com/Jcstack/harnesslift/issues/new?template=trial_feedback.yml). Successful and blocked trials are both useful.
 
-A stronger future demonstration should use a real provider on a disposable, entirely synthetic coding task: show the chosen model, local edits, a test result, and continuation. Identify the route, client, runtime, and relevant setup. Review every frame before publishing; exclude account details, private paths, quota panels, unrelated windows, prompts from real work, and raw logs. Do not record a user's active business session for promotion. That demonstration has not been produced as part of this plan.
+A real provider-backed repair check is now available. A continuous interactive recording, model switching and continuation demonstration remain separate work. Identify the route, client, runtime and setup in any future recording. Review every frame before publication; exclude account details, private paths, quota panels, unrelated windows, prompts from real work and raw logs. Do not record a user's active business session for promotion.
 
 The current preview still has unresolved stream interruptions. Early testers should understand the supervision requirement. Broader promotion should follow successful outside trials and measured reliability improvements rather than an expanded promise of universal support.
 
@@ -43,15 +67,15 @@ The current preview still has unresolved stream interruptions. Early testers sho
 
 | Priority | Destination | Intended contribution and boundary |
 | --- | --- | --- |
-| 1 | [r/codex weekly Showcase checked on Nov 6](https://www.reddit.com/r/codex/comments/1xmyhim/show_us_all_what_youve_been_building_with_codex/) | One owner-approved comment about the workflow, a direct repo link, and a specific feedback request. Verify that this remains the appropriate current thread. |
-| 2 | [r/ClaudeCode weekly Showcase checked on Nov 6](https://www.reddit.com/r/ClaudeCode/comments/1xlurut/weekly_showcase_thread_what_are_you_building_with/) | A separate, relevant account of how Claude Code was involved as the integration client and harness. Do not invent a story that Claude models authored the project. The thread directs short promotion here and prohibits repeated spam and referral links. |
+| 1, published | [r/codex Showcase rechecked on Nov 8](https://www.reddit.com/r/codex/comments/1xmyhim/comment/19s8a5hg2sgap/) | The approved comment is publicly visible. Respond to real questions; do not duplicate the introduction. |
+| 2, draft | [r/ClaudeCode weekly Showcase checked on Nov 8](https://www.reddit.com/r/ClaudeCode/comments/1xlurut/weekly_showcase_thread_what_are_you_building_with/) | A separate, relevant account of how Claude Code was involved as the integration client and harness, linked to the reproducible task. Do not invent a story that Claude models authored the project. The thread directs short promotion here and prohibits repeated spam and referral links. |
 | 3 | [Show HN](https://news.ycombinator.com/showhn.html) | Later, once the maintainer can demonstrate a real first run and answer implementation questions. HN's [guidelines](https://news.ycombinator.com/newsguidelines.html) require human-written contributions and prohibit automated posting. Use the fact sheet below as research; the maintainer writes and posts their own submission. |
 
 Do not post these materials, contact moderators, send DMs, or submit directory/awesome-list PRs without the owner's explicit instruction for the destination and content. Useful upstream contributions should stand on their technical value; an unrelated issue is not an advertising slot. Recheck community rules before any authorized publication. Do not buy stars, solicit coordinated votes, promise rewards for stars, or repeatedly cross-post the same text.
 
-## Draft for the r/codex Showcase
+## Published r/codex Showcase copy
 
-Owner review is required. This is a draft for the Showcase comment above, not an HN submission.
+This approved copy is visible at the comment linked above. It is retained as a publication record, not an instruction to post it again or an HN submission.
 
 > I wanted to keep Claude Code as my coding harness while using Codex-backed models, so I maintain HarnessLift: https://github.com/Jcstack/harnesslift
 >
@@ -62,6 +86,26 @@ Owner review is required. This is a draft for the Showcase comment above, not an
 > This is an MIT-licensed developer preview. Stream interruptions remain unresolved, so I am looking for feedback on small supervised tasks rather than recommending unattended runs. You need your own account access to the model provider.
 >
 > If this is a workflow you want, which step works or blocks you: installation, choosing a model, local tool calls, or MCP? There is a short first-run feedback form in the README. Please keep credentials, account information, private prompts and logs out of public reports.
+
+## Draft for the r/ClaudeCode Showcase
+
+Not posted. This is a new destination and needs the owner's explicit approval.
+Recheck the current weekly Showcase before publication. Its
+[currently checked thread](https://www.reddit.com/r/ClaudeCode/comments/1xlurut/weekly_showcase_thread_what_are_you_building_with/)
+allows brief project introductions, asks how Claude Code was involved, and
+prohibits repeated spam and referral links. The project was developed with
+Codex and exercised through Claude Code; do not claim that Claude models
+authored it. HN remains a human-authored, human-posted channel.
+
+> I maintain HarnessLift for a specific workflow: keep Claude Code as the harness while Codex-backed OpenAI models provide the responses.
+>
+> Claude Code still executes the local tools and applies its permissions. A local HTTP bridge translates the model requests. Your own Codex account supplies inference; credentials stay in the private local installation, and task context still goes to OpenAI.
+>
+> Here is a concrete check: the real Claude Code client called Read, Edit and Bash, fixed a small Python exercise, and passed all five existing tests without changing the tests. The result card is a redacted headless verification summary, not a screen recording or benchmark: https://github.com/Jcstack/harnesslift#readme
+>
+> If you already use Codex and prefer Claude Code's workflow, there is a small self-contained repair task to try: https://github.com/Jcstack/harnesslift/tree/main/examples/first-task
+>
+> This is an MIT developer preview with known stream interruptions. The real-provider check used an existing reviewed macOS runtime; Linux/Windows installation checks are separate from real-account validation. I am looking for voluntary pass/blocked reports from small supervised tasks. Platform, versions and the step that worked or failed are enough; please keep credentials, private prompts and logs out of public replies.
 
 ## Human author fact sheet for HN
 

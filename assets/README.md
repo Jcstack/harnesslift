@@ -2,6 +2,37 @@
 
 The HarnessLift logo and social card are original code-generated vector artwork. They do not combine or reuse provider logos. `logo.svg` is the project mark; `social-preview.svg` is its editable 1280×640 composition, and `social-preview.png` is the corresponding raster asset for GitHub's social-preview setting. The SVG and PNG use separate vector/raster renderers, so font metrics can differ slightly. Fonts are supplied by the local operating system and are not redistributed here. Project artwork and generator source use this repository's MIT license.
 
+## Real provider check
+
+`provider-check.png` summarizes one real provider-backed coding check on
+2026-11-08. The real Claude Code 2.1.316 client used HarnessLift's existing
+managed TLS subscription route, requested `gpt-6.1-sol` at high effort, and
+called the local `Read`, `Edit` and `Bash` tools. The starting
+[first-task exercise](../examples/first-task) failed three of five tests. After
+the model's edit, independent execution passed all five and the test file's
+hash was unchanged. The paid Project API was not used, and installed service
+state and runtime selection were not reconfigured.
+
+The check used an owned workspace, isolated home/configuration, an empty MCP
+configuration, explicit local tool permissions and a bounded headless process.
+It did not record or read an active user conversation. Model requests and the
+owned task context still reached OpenAI. This one macOS task does not establish
+model-quality parity, speed, Windows login, every plugin or unattended recovery.
+The requested model is recorded; it is not independent attestation of provider
+weights. A fresh default installation and the already-configured reviewed
+runtime are separate setup states.
+
+`provider-check.json` contains only allowlisted public result fields. Raw
+client output, session identifiers, account information, private paths, tokens,
+usage/cost counters and timings are excluded. The image is a rendered summary,
+not a screenshot, continuous recording or benchmark. It is separate from the
+scripted-model walkthrough below.
+
+To reproduce the task, follow the example's README using your available model.
+To reproduce the rendering only, use the hash-locked artwork environment below
+and run `python assets/build_provider_card.py`. That renderer reads the public
+receipt only and does not make provider calls or inspect runtime directories.
+
 ## What the walkthrough shows
 
 `walkthrough.gif` is a 30-second sequence of four terminal states recorded from the integrity-locked Claude Code 2.1.316 client:

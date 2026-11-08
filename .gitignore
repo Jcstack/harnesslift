@@ -17,6 +17,14 @@
 !assets/record_demo.py
 !assets/demo-screens.json
 !assets/requirements-demo.txt
+!assets/provider-check.json
+!assets/provider-check.png
+!assets/build_provider_card.py
+!examples/
+!examples/first-task/
+!examples/first-task/README.md
+!examples/first-task/slugify.py
+!examples/first-task/test_slugify.py
 !COMPATIBILITY.md
 !CAPABILITY_AUDIT.md
 !BROWSER.md

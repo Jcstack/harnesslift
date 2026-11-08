@@ -1,0 +1,24 @@
+{
+  "client": "Claude Code",
+  "client_version": "2.1.316",
+  "example": "examples/first-task",
+  "execution": "headless",
+  "final_tests_passed": 5,
+  "format": 1,
+  "initial_failures": 3,
+  "initial_tests": 5,
+  "kind": "real-provider-owned-task",
+  "presentation": "Redacted verification summary; not a screen recording, speed or quality benchmark.",
+  "project_api_used": false,
+  "requested_effort": "high",
+  "requested_model": "gpt-6.1-sol",
+  "route": "HarnessLift managed TLS bridge to the Codex subscription route",
+  "runtime_reconfigured": false,
+  "scope": "One small owned task on macOS; not Windows login or complete feature acceptance.",
+  "tests_unchanged": true,
+  "tools_observed": [
+    "Bash",
+    "Edit",
+    "Read"
+  ]
+}
