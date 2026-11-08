@@ -391,3 +391,19 @@ original 32 MiB bound, archive digest, per-platform executable digests and
 window/permission checks. Its alternate asset ID was checked against the
 official release digest; no desktop runtime version was changed. Native
 acceptance of this additional path remains separate from the main installer.
+
+The full dependency gate exposed a missing local import in the optional MCP
+server's immutable source snapshot. New snapshots now include the shared
+download module. Complete historical source sets remain readable without
+modification; a snapshot that imports a known helper without carrying its
+reviewed source is rejected. The check examines every declared source rather
+than permitting an import to fall through to the working directory or
+`PYTHONPATH`. Real stdio MCP/PDF controls run with the locked dependency
+environment and an untrusted workspace import fixture.
+
+Local acceptance passed 464 tests with 12 platform/fixture skips in the locked
+environment. A separate 90-check installed-source overlay and a real frozen
+stdio MCP/PDF exchange passed; neither the workspace's helper nor its
+`sitecustomize` fixture executed. The existing selected capability snapshot
+remained readable and unchanged. Cross-platform source/install acceptance
+remains required before deployment.

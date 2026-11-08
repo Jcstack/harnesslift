@@ -94,6 +94,11 @@ close the broader unattended-recovery acceptance item.
   executable pins and window checks. A synthetic primary 504 followed by real
   official API bytes installed and verified the desktop archive in an owned
   temporary directory without launching an app or selecting a window.
+  The full dependency gate then exposed a missing import in the optional
+  MCP source snapshot. New snapshots include the shared helper; complete
+  historical sets remain immutable and usable, while mixed snapshots missing
+  a known imported helper are rejected. Locked-environment stdio MCP/PDF
+  acceptance precedes promotion.
 - [x] Prepare an unselected, privacy-limited immediate-upstream trace candidate.
   Owned mixed-generation/TLS controls distinguish the inner request from the
   outer response trace, retain failures and malformed/missing/duplicate-header
