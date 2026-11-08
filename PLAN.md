@@ -45,11 +45,12 @@ close the broader unattended-recovery acceptance item.
    decoder-setup phases. Its immediate upstream is the older origin; these
    observations do not expose the origin-to-provider phases or establish the
    historical disconnect's cause.
-   Separately evaluate a sanitized request link from the pinned origin's
-   response trace: verify actual mixed-generation/ingress propagation,
-   missing or duplicate headers and truncated-tag ambiguity before use.
+   A sanitized request link from the pinned origin's response trace is now
+   selected after mixed-generation/ingress, header-shape, ambiguity and
+   draining-handoff acceptance.
    Keep credential-selection metadata out of logs and do not treat the trace
-   as atomic account binding. The current comparison remains temporal.
+   as atomic account binding. Short access-log tags permit candidate
+   associations alongside temporal comparisons; exact linkage remains open.
 2. The native error-category correction is selected. Complete repeated-failure,
    exhaustion, cancellation and overall-budget acceptance for the harness's
    native retry policy. Keep this separate from
@@ -105,7 +106,13 @@ close the broader unattended-recovery acceptance item.
   now recognizes typed direct/wrapped timeouts and permits only its existing
   one official alternate; certificate errors and arbitrary error strings
   remain refusals. A timed-out partial body is discarded, preserving the cache.
-- [x] Prepare an unselected, privacy-limited immediate-upstream trace candidate.
+  The final [source/install gate](https://github.com/Jcstack/harnesslift/actions/runs/42473963595)
+  passed all eleven jobs, including fresh Linux/Windows installation and native
+  Windows desktop input. The installed source mix passed 93 checks and a real
+  frozen stdio MCP/PDF exchange; the locked-environment suite passed 467 tests
+  with twelve platform/fixture skips. Compatible helper/controllers were
+  installed with the managed update, preserving the old capability snapshot.
+- [x] Validate and select a privacy-limited immediate-upstream trace observer.
   Owned mixed-generation/TLS controls distinguish the inner request from the
   outer response trace, retain failures and malformed/missing/duplicate-header
   categories, and preserve one provider-fixture attempt under concurrency.
@@ -117,10 +124,16 @@ close the broader unattended-recovery acceptance item.
   Codex/observer race checks passed; an unrelated broader Devin diagnostic
   test failed in both the unchanged baseline and candidate. The
   [three-platform candidate acceptance](https://github.com/Jcstack/harnesslift/actions/runs/42462774261)
-  passed. Read-only production reporting and source-profile promotion are now
-  prepared, with separate retained header failures and a source-locked bundle.
-  Three-platform promotion, installed-source and persistent-client draining
-  checks precede any live rollout; the active bundle is unchanged.
+  passed. Read-only production reporting retains header failures separately
+  and the observer belongs to the source-locked bundle.
+  The [three-platform promotion gate](https://github.com/Jcstack/harnesslift/actions/runs/42464708369)
+  passed mixed-generation TLS, native recovery and persistent-client draining
+  controls. The final source/install gate above passed before the managed
+  bundle was selected locally on 2026-11-08. Original state/process, ingress
+  identity/port, client key and account were preserved. A short real
+  subscription stream completed normally; the live observer produced valid
+  private link metadata and the read-only report withheld UUIDs/nonces.
+  This adds diagnostic evidence, not safe replay or a physical-cause finding.
   See [STREAMING.md](STREAMING.md#candidate-upstream-request-links-2026-11-08).
 - [x] Reproduce an empty-text delivery defect in an owned two-hop native
   interactive client. The previous profile stops after an empty part start or
@@ -247,6 +260,10 @@ close the broader unattended-recovery acceptance item.
   process crash. Establish a bound on how long account switching can be blocked.
   Test both legacy direct and managed clients separately, and do not enable a
   fallback that sends a request before verifying its intended account.
+  A source review found private Go-context/internal-execution pinning and a
+  separate WebSocket path; ordinary two-hop HTTP does not acquire that
+  contract from a proposed header. See the
+  [origin interface review](STREAMING.md#existing-origin-account-pinning-2026-11-08).
 - [ ] Reconcile the original origin's default image-tool injection with safe
   recovery. The positive fake-origin fixtures disabled injection on both hops;
   the installed origin leaves its setting unset. The default-injection negative

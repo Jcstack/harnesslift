@@ -560,3 +560,34 @@ so changing the Claude transport to HTTP/2 is not a demonstrated Codex remedy.
 Those are upstream findings about another installation, not proof of this
 machine's failure source. Neither a closed report nor release activity justifies
 replacing the current credential owner or replaying arbitrary partial responses.
+
+## Targeted v8.0.60 review, 2026-11-08
+
+The official [v8.0.60 release](https://github.com/router-for-me/CLIProxyAPI/releases/tag/v8.0.60)
+was published on 2026-11-07 UTC. Five selected production diffs were reviewed;
+this was not an independent test of the whole release.
+
+The [standalone effort fix](https://github.com/router-for-me/CLIProxyAPI/commit/e6931d51e328343088d5902e5cbd06edbe4d8633)
+changes Claude-to-OpenAI Chat Completions translation. The pinned Codex Responses
+translator already handles standalone `output_config.effort`, so this diff does
+not establish a missing effort field in the active subscription route. The
+[whitespace-thinking fix](https://github.com/router-for-me/CLIProxyAPI/commit/69637a662a05aebc64805760be960284b2459cb2)
+also changes the Chat Completions response translator. The
+[completed-body drain](https://github.com/router-for-me/CLIProxyAPI/commit/ce38c75c624df1ceb0777f3e7c21f892883569ed)
+changes the Claude upstream executor, not the Codex executor.
+
+The [pending-tool transcript fix](https://github.com/router-for-me/CLIProxyAPI/commit/f4d3f0618d158c3168e113340fd06af15200d67a)
+concerns downstream Responses WebSocket transcript replacement. The
+[SIWC recovery fix](https://github.com/router-for-me/CLIProxyAPI/commit/5f38d5572c432c67ec260be55f73b0ec72ac0764)
+preserves a healthy native token while a distinct SIWC grant requires recovery.
+These need their own transport, account and refresh gates before adoption;
+neither justifies changing the credential owner during existing work.
+
+Rechecked [issue 5545](https://github.com/router-for-me/CLIProxyAPI/issues/5545)
+remains closed as not planned. The related opt-in HTTP/2 health-check
+[proposal 6535](https://github.com/router-for-me/CLIProxyAPI/pull/6535) was closed
+without merging; it addresses a silent dead connection rather than every
+premature close. The official Codex repository still has an open
+[WebSocket-close report](https://github.com/openai/codex/issues/20739).
+These are related reports, not a diagnosis of this installation or evidence
+that WebSocket, longer timeouts or an unconditional retry solves its failures.

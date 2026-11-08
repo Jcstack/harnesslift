@@ -412,6 +412,33 @@ Remaining work, updated 2026-11-01; execution order and acceptance gates are in 
 
 No claim of complete future-plugin compatibility or Opus quality parity is made.
 
+## Managed request-link rollout, 2026-11-08
+
+The source-locked request-link observer and read-only controller/report update
+were selected after the [three-platform handoff gate](https://github.com/Jcstack/harnesslift/actions/runs/42464708369)
+and all eleven [source/install jobs](https://github.com/Jcstack/harnesslift/actions/runs/42473963595)
+passed. Local checks covered the actual installed-source mix, a frozen stdio
+MCP/PDF exchange and complete historical capability snapshots. The local source
+permission check stopped publication until the verified files were private.
+
+The managed generation changed while the original credential owner's state
+and process, TLS ingress identity and port, client key, account inventory and
+selected account stayed the same. No original listener or native client was
+restarted. A bounded real subscription stream completed with its exact owned
+marker and native stop events; the Project API remained disabled. New private
+UUID observations were present and the shareable read-only report withheld
+UUIDs and process nonces. The finite observer window applies to this managed
+generation, not the original origin-to-provider hop.
+
+Use `harnesslift` for a new conversation or `harnesslift --resume` for native
+session selection. The existing `claude-codex` entry point remains compatible.
+Both local help paths and resume-option forwarding were checked without
+starting a user conversation. Existing managed sessions do not need a restart
+for this backend update. Direct legacy clients, startup-only settings and
+original-listener migration retain their documented boundaries. The recurring
+stream failure's physical cause and unattended partial-output continuation
+remain open in [PLAN.md](PLAN.md).
+
 ## Optional native pack, 2026-10-31
 
 The [native MCP pack](NATIVE_TOOLS.md) is implemented and installed locally in a

@@ -112,12 +112,16 @@ not add gateway replay, migrate the credential owner or establish complete
 live-installer atomicity.
 [Scope and recovery boundaries](STREAMING.md#empty-text-and-native-recovery-2026-11-07).
 
-The next source profile includes a bounded immediate-upstream request-link
+The reviewed source profile includes a bounded immediate-upstream request-link
 observer and read-only reporting. It discards the trace's credential-selection
 prefix and labels a unique short-log-tag match as a candidate association.
-It never authorizes retry or account changes. The initial three-platform
-candidate gate passed; production reporting, source-profile promotion and
-persistent-client draining checks are prepared separately before installation.
+It never authorizes retry or account changes. Three-platform mixed-generation,
+TLS, native-recovery and persistent-client draining checks passed, followed by
+all eleven source/install jobs. The source-locked managed backend and bounded
+reporting were selected locally on 2026-11-08, preserving the original service,
+ingress, key and account. A short real subscription stream and private-ID
+redaction checks passed. This does not establish the historical failure's
+physical cause or enable gateway replay.
 [Evidence and boundaries](STREAMING.md#candidate-upstream-request-links-2026-11-08).
 
 An isolated Claude Code 2.1.316 probe found a possible future migration path:
@@ -383,8 +387,10 @@ attempt. A cached valid archive or the existing
 
 Synthetic controls cover those boundaries and unchanged pins. One real public
 Windows archive was also fetched through the official API without account
-credentials and matched its existing digest. Native installation acceptance of
-this change remains a separate gate.
+credentials and matched its existing digest. The final
+[source/install gate](https://github.com/Jcstack/harnesslift/actions/runs/42473963595)
+passed all eleven jobs, including native Windows installation, ACLs and both
+command wrappers. Earlier download failures remain recorded below.
 
 The following Windows run passed the main installation/ACL/transport controls,
 then the optional desktop bootstrap independently returned HTTP 504 while
@@ -393,8 +399,10 @@ The same transport is therefore shared by both bootstrap paths in
 [`pinned_download.py`](pinned_download.py). The desktop archive retains its
 original 32 MiB bound, archive digest, per-platform executable digests and
 window/permission checks. Its alternate asset ID was checked against the
-official release digest; no desktop runtime version was changed. Native
-acceptance of this additional path remains separate from the main installer.
+official release digest; no desktop runtime version was changed. The final
+Windows capability job also passed real keyboard, Unicode and button effects
+inside the owned desktop fixture. This is separate from authenticated Windows
+model inference and login acceptance.
 
 The full dependency gate exposed a missing local import in the optional MCP
 server's immutable source snapshot. New snapshots now include the shared
@@ -409,8 +417,9 @@ Local acceptance passed 467 tests with 12 platform/fixture skips in the locked
 environment. A separate 93-check installed-source overlay and a real frozen
 stdio MCP/PDF exchange passed; neither the workspace's helper nor its
 `sitecustomize` fixture executed. The existing selected capability snapshot
-remained readable and unchanged. Cross-platform source/install acceptance
-remains required before deployment.
+remained readable and unchanged. Cross-platform source/install acceptance then
+passed before the managed rollout; the live selected capability snapshot also
+remained readable after the controller update.
 
 The next three-platform capability jobs passed, including real Windows desktop
 input against the owned fixture. The separate Linux and Windows fresh-install

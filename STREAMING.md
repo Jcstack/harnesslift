@@ -398,9 +398,9 @@ logs. Missing, repeated, comma-combined, malformed and unavailable headers have
 fixed categories without a guessed identity. It shares the existing finite
 diagnostic window, does not consume bodies or alter headers, and adds no
 request, retry, credential owner, timeout or model change. After its initial
-unselected acceptance, it was added to the reviewed source profile. Activation
-on the active host remains gated on the reporting and draining-handoff checks
-below; changing repository source does not update a running backend.
+unselected acceptance, it was added to the reviewed source profile. It was
+selected locally after the reporting and draining-handoff gates below;
+changing repository source alone does not update a running backend.
 
 The [owned integration fixture](tests/probe_upstream_trace_link.py) places a
 synthetic recording tap between independent proxies, then calls the observed
@@ -447,10 +447,44 @@ a successful full upstream test run. The separate
 selected profile and candidate independently and checks native tool recovery.
 Its [run](https://github.com/Jcstack/harnesslift/actions/runs/42462774261) passed
 all three platforms for the initial candidate. The source profile now includes
-the patch and the installer includes the report module. A new run adds the
-profile's persistent-client draining handoff; that acceptance and the live
-rollout remain pending. Existing live diagnostics still use temporal
-cross-layer comparisons until the reviewed update is installed.
+the patch and the installer includes the report module. The
+[promotion gate](https://github.com/Jcstack/harnesslift/actions/runs/42464708369)
+passed on all three platforms, including mixed-generation TLS propagation,
+native recovery and the same client's admitted old stream across handoff.
+All eleven [source/install jobs](https://github.com/Jcstack/harnesslift/actions/runs/42473963595)
+passed for the final controller revision. Earlier attempts exposed separate
+public-archive download failures and a missing frozen-MCP dependency; their
+fixes and acceptance are in [RUNTIME.md](RUNTIME.md#pinned-installer-download-fallback).
+
+Local acceptance included 467 locked-environment tests with twelve
+platform/fixture skips, a 93-check installed-source overlay and a real frozen
+stdio MCP/PDF exchange using that source mix. A source-permission guard stopped
+the first local update before publication; verified source bytes were retained
+and source permissions tightened before proceeding. The source-locked managed
+backend was selected on 2026-11-08. Original service state/process, ingress
+identity/port, client key, account inventory and selected account were preserved.
+No original listener or native client was restarted. A short real subscription
+stream returned its exact owned marker, `end_turn` and `message_stop` without
+using the Project API. The new observer recorded a valid immediate-upstream
+UUID privately; read-only reporting withheld that UUID and the process nonce,
+and the existing capability snapshot remained readable. The finite diagnostic
+window was enabled for this managed generation. These checks do not establish
+physical cause, exact access-record identity or safe autonomous replay.
+
+### Existing origin account pinning, 2026-11-08
+
+The pinned origin exposes `WithPinnedAuthID` and a selected-auth callback as
+[private Go context values](https://github.com/router-for-me/CLIProxyAPI/blob/9717e325ba6ab2c7483ea93ccb5f2047eb2e7dd5/sdk/api/handlers/handlers_context.go).
+Its [request metadata builder](https://github.com/router-for-me/CLIProxyAPI/blob/9717e325ba6ab2c7483ea93ccb5f2047eb2e7dd5/sdk/api/handlers/handlers.go)
+reads those values from context; the reviewed ordinary HTTP path does not
+establish them from a caller's proposed auth-ID header or body field.
+`ModelExecutionRequest.AuthID` belongs to an
+[internal execution interface](https://github.com/router-for-me/CLIProxyAPI/blob/9717e325ba6ab2c7483ea93ccb5f2047eb2e7dd5/sdk/api/handlers/model_execution.go),
+and the Responses WebSocket handler has separate connection-level pinning.
+Those are implementation hooks, not a demonstrated account-binding contract
+for the current two-hop HTTP route. Origin cooperation and the selection,
+refresh, cancellation and hosted-tool gates remain necessary; neither a trace
+UUID nor an invented HTTP header supplies them.
 
 ### Forwarded incomplete-stream failures
 
