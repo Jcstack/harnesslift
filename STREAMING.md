@@ -407,9 +407,9 @@ hostname verification. Local controls passed streamed and buffered completion,
 reasoning-only EOF, a 503, absent/duplicate/invalid/combined trace headers and
 two concurrent calls. Each made one provider-fixture request, with no fabricated
 completion after EOF. The outer and inner UUIDs stayed distinct. The same
-controls passed with a byte-identical copy of the retained origin executable
-using disposable configuration and synthetic keys; its running process was
-not touched. Native Sol/Sonnet and Astra/Opus compatibility fixtures also
+controls passed with a copy of the executable at the retained origin's verified
+path, using disposable configuration and synthetic keys; its running process
+was not touched. Native Sol/Sonnet and Astra/Opus compatibility fixtures also
 retained one completed write and its result across an empty-text failure.
 These are protocol controls, not real account selection, provider latency or
 physical-disconnect measurements.
@@ -423,6 +423,15 @@ methods/routes/statuses, skipped lines and bounded-history loss suppress the
 association. Unobserved or rotated records can still hide collisions. This
 does not establish account binding, idempotency, completion or error cause.
 
+The pinned logger's local filenames and access formatter truncate request IDs.
+Its separate Home request-log payload can retain a full ID together with raw
+log content, as covered by the pinned
+[logger test](https://github.com/router-for-me/CLIProxyAPI/blob/9717e325ba6ab2c7483ea93ccb5f2047eb2e7dd5/internal/logging/request_logger_home_test.go).
+That export is not enabled as a workaround. Header-shaped text in an error
+file's unframed body is not independent identity metadata, and no raw-error-log
+parser is enabled by this candidate. Exact access-record linkage still needs
+independently recorded full IDs and a verified source.
+
 The local Codex/observer Go race suites, helper suite, build and focused Python
 checks passed. A broader upstream executor run failed the Devin raw-newline
 nonstream diagnostic test. That same test failed independently in both the
@@ -430,8 +439,10 @@ unchanged selected-source baseline and this candidate; it is not reported as
 a successful full upstream test run. The separate
 [three-platform gate](.github/workflows/upstream-trace-link.yml) builds the
 selected profile and candidate independently and checks native tool recovery.
-Its acceptance and any production parser/source-lock/rollout remain separate
-gates. Existing live diagnostics still use temporal cross-layer comparisons.
+Its [run](https://github.com/Jcstack/harnesslift/actions/runs/42462774261) passed
+all three platforms. Production reporting, source-lock promotion and a
+persistent-client draining handoff remain separate gates. Existing live
+diagnostics still use temporal cross-layer comparisons.
 
 ### Forwarded incomplete-stream failures
 

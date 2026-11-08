@@ -84,14 +84,16 @@ close the broader unattended-recovery acceptance item.
   Owned mixed-generation/TLS controls distinguish the inner request from the
   outer response trace, retain failures and malformed/missing/duplicate-header
   categories, and preserve one provider-fixture attempt under concurrency.
-  A byte-identical retained-origin fixture and native Sol/Astra tool-recovery
+  A retained-origin executable fixture and native Sol/Astra tool-recovery
   controls passed locally. Offline accounting rejects observed collisions,
   duplicates and incomplete coverage without exporting UUIDs or selection
   indexes. Original access logs retain only a 32-bit suffix, so a unique match
   is a candidate association, not exact identity or account binding. Local
   Codex/observer race checks passed; an unrelated broader Devin diagnostic
-  test failed in both the unchanged baseline and candidate. Three-platform
-  acceptance, production reporting and any live rollout remain separate gates.
+  test failed in both the unchanged baseline and candidate. The
+  [three-platform candidate acceptance](https://github.com/Jcstack/harnesslift/actions/runs/42462774261)
+  passed. Production reporting, source-lock promotion and a persistent-client
+  draining handoff remain separate gates; the active bundle is unchanged.
   See [STREAMING.md](STREAMING.md#candidate-upstream-request-links-2026-11-08).
 - [x] Reproduce an empty-text delivery defect in an owned two-hop native
   interactive client. The previous profile stops after an empty part start or
